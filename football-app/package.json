@@ -1,0 +1,38 @@
+{
+  "name": "football-app",
+  "version": "1.0.0",
+  "description": "A football app for users to create and manage their own teams, enter tournaments, and compete for prizes.",
+  "main": "src/App.tsx",
+  "scripts": {
+    "start": "react-native start",
+    "build": "react-native build",
+    "test": "jest",
+    "eject": "react-native eject"
+  },
+  "dependencies": {
+    "react": "17.0.2",
+    "react-native": "0.64.2",
+    "react-navigation": "^4.4.4",
+    "redux": "^4.1.0",
+    "react-redux": "^7.2.6",
+    "axios": "^0.21.1"
+  },
+  "devDependencies": {
+    "typescript": "^4.3.5",
+    "jest": "^27.0.6",
+    "babel-jest": "^27.0.6"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/football-app.git"
+  },
+  "keywords": [
+    "football",
+    "app",
+    "tournament",
+    "team",
+    "management"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}
