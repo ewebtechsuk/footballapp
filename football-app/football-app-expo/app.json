@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "football-app-expo",
+    "slug": "football-app-expo",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+    ,
+    "extra": {
+      "FIREBASE_API_KEY": "AIzaSyDNYE3TgTsKJ68EzJfe1nASv8iS17UJ_kY",
+      "FIREBASE_AUTH_DOMAIN": "footballapp-90e32.firebaseapp.com",
+      "FIREBASE_PROJECT_ID": "footballapp-90e32",
+      "FIREBASE_STORAGE_BUCKET": "footballapp-90e32.firebasestorage.app",
+      "FIREBASE_MESSAGING_SENDER_ID": "607732579377",
+      "FIREBASE_APP_ID": "1:607732579377:web:b2bc03baeda0b0627ea910",
+      "FIREBASE_MEASUREMENT_ID": "G-G5073H160W"
+    }
+  }
+}
