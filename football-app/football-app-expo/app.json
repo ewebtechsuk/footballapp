@@ -30,7 +30,7 @@
       "FIREBASE_API_KEY": "AIzaSyDNYE3TgTsKJ68EzJfe1nASv8iS17UJ_kY",
       "FIREBASE_AUTH_DOMAIN": "footballapp-90e32.firebaseapp.com",
       "FIREBASE_PROJECT_ID": "footballapp-90e32",
-      "FIREBASE_STORAGE_BUCKET": "footballapp-90e32.firebasestorage.app",
+  "FIREBASE_STORAGE_BUCKET": "footballapp-90e32.appspot.com",
       "FIREBASE_MESSAGING_SENDER_ID": "607732579377",
       "FIREBASE_APP_ID": "1:607732579377:web:b2bc03baeda0b0627ea910",
       "FIREBASE_MEASUREMENT_ID": "G-G5073H160W"

@@ -1,13 +1,13 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeScreen from './screens/HomeScreen';
 import TeamScreen from './screens/TeamScreen';
 import CreateTeamScreen from './screens/CreateTeamScreen';
 import TournamentScreen from './screens/TournamentScreen';
 import ProfileScreen from './screens/ProfileScreen';
 
-const Stack = createStackNavigator();
+const Stack = createNativeStackNavigator();
 
 const App = () => {
   return (

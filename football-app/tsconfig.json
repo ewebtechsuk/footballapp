@@ -1,15 +1,18 @@
 {
   "compilerOptions": {
-    "target": "es6",
-    "module": "commonjs",
-    "lib": ["dom", "es6"],
-    "jsx": "react",
+    "target": "es2020",
+    "module": "esnext",
+    "lib": ["es2020", "DOM"],
+    "jsx": "react-native",
     "strict": true,
     "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "outDir": "./dist",
     "baseUrl": "./src",
+    "moduleResolution": "node",
+  "types": ["react", "node"],
     "paths": {
       "@components/*": ["components/*"],
       "@screens/*": ["screens/*"],

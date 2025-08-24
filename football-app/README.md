@@ -54,3 +54,34 @@ We welcome contributions! If you would like to contribute to the Football App, p
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Expo + Firebase setup
+
+1. Create a Firebase project at https://console.firebase.google.com and enable Email/Password sign-in and Firestore.
+
+2. Add a web app in Firebase and copy the config values. Set them as environment variables for local development (or replace the placeholders in `src/services/firebase.ts`):
+
+```
+FIREBASE_API_KEY=...
+FIREBASE_AUTH_DOMAIN=...
+FIREBASE_PROJECT_ID=...
+FIREBASE_STORAGE_BUCKET=...
+FIREBASE_MESSAGING_SENDER_ID=...
+FIREBASE_APP_ID=...
+```
+
+3. Install dependencies (from project root):
+
+```bash
+npm install firebase @react-navigation/native @react-navigation/native-stack react-native-screens react-native-safe-area-context
+```
+
+4. Run the app with Expo (recommended):
+
+```bash
+npx expo start
+```
+
+Notes:
+- For iOS builds you may need macOS or use EAS Build.
+- This repository contains starter Firebase helpers in `src/services/` (see `firebase.ts`, `auth.ts`, and `firestore.ts`).
