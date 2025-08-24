@@ -1,0 +1,15 @@
+{
+  "name": "footballapp-upload-server",
+  "version": "0.1.0",
+  "private": true,
+  "main": "server-signed.js",
+  "scripts": {
+    "start:signed": "node server-signed.js",
+    "start:proxy": "node server-proxy.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "firebase-admin": "^11.11.0",
+    "multer": "1.4.4"
+  }
+}

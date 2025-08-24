@@ -1,0 +1,31 @@
+# Root ignore rules for footballapp repo
+# Dependency directories
+node_modules/
+
+# Expo / build artifacts
+.expo/
+dist/
+web-build/
+
+# TypeScript
+*.tsbuildinfo
+
+# Logs & diagnostics
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# OS / misc
+.DS_Store
+*.pem
+
+# Environment files (keep examples)
+.env
+.env*.local
+
+# Cache or transient
+.metro-health-check*
+
+# Generated artifacts (adjust as needed)
+*.orig.*
