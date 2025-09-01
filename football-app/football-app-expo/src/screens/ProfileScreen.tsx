@@ -1,13 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { useSelector, useDispatch } from 'react-redux';
+import { useAppSelector } from '../store/hooks';
 import { useNavigation } from '@react-navigation/native';
 import * as auth from '../services/auth';
 
 const ProfileScreen = () => {
-    const user = useSelector((state: any) => state?.user ?? null);
+    const user = useAppSelector(state => state.user);
     const navigation = useNavigation();
-    const dispatch = useDispatch();
 
     const [isEditing, setIsEditing] = React.useState(false);
 

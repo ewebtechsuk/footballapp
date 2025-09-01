@@ -1,11 +1,15 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-interface UserState {
+// Core user profile shape tracked in redux. Extend cautiously; keep optional
+// fields undefined unless explicitly loaded from Firestore so components can
+// detect loading states if needed.
+export interface UserState {
   id: string | null;
-  name: string | null;
-  displayName?: string | null;
+  name: string | null; // canonical full name
+  displayName?: string | null; // short / public name
   bio?: string | null;
-  position?: string | null;
+  position?: string | null; // playing position
+  avatarUrl?: string | null;
   email: string | null;
   teams: string[];
 }
@@ -22,7 +26,7 @@ const userSlice = createSlice({
   initialState,
   reducers: {
     setUser(state, action: PayloadAction<UserState>) {
-      return { ...state, ...action.payload };
+      return { ...state, ...action.payload } as UserState;
     },
     clearUser(state) {
       return initialState;
@@ -31,7 +35,7 @@ const userSlice = createSlice({
       state.name = action.payload;
     },
     updateProfile(state, action: PayloadAction<Partial<UserState>>) {
-      return { ...state, ...action.payload };
+      return { ...state, ...action.payload } as UserState;
     },
     addTeam(state, action: PayloadAction<string>) {
       state.teams.push(action.payload);

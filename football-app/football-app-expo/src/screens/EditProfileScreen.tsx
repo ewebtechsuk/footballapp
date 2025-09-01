@@ -10,7 +10,7 @@ import {
   Image,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { useSelector, useDispatch } from "react-redux";
+import { useAppSelector, useAppDispatch } from "../store/hooks";
 import { updateProfile } from "../store/slices/userSlice";
 import { updateUserProfile, getUserProfile } from "../services/firestore";
 import { uploadAvatar } from "../services/storage";
@@ -18,8 +18,8 @@ import { uploadUserAvatar } from "../services/avatarFlow";
 
 // Minimal edit profile screen: updates local redux user.name if a user slice exists.
 const EditProfileScreen = ({ navigation }: { navigation: any }) => {
-  const user = useSelector((s: any) => s.user ?? null);
-  const dispatch = useDispatch();
+  const user = useAppSelector((s) => s.user);
+  const dispatch = useAppDispatch();
   const [name, setName] = useState(user?.name ?? "");
   const [displayName, setDisplayName] = useState(user?.displayName ?? "");
   const [bio, setBio] = useState(user?.bio ?? "");
