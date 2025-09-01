@@ -55,3 +55,11 @@ export const updateUserProfile = async (userId: string, fields: Record<string, a
   }
   return true;
 };
+
+// Fetch a user's profile document (returns null if missing)
+export const getUserProfile = async (userId: string): Promise<Record<string, any> | null> => {
+  if (!userId) throw new Error('Missing userId');
+  const ref = doc(db, 'users', userId);
+  const snap = await getDoc(ref);
+  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+};

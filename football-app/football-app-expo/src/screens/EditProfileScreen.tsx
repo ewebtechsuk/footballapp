@@ -12,7 +12,7 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import { useSelector, useDispatch } from "react-redux";
 import { updateProfile } from "../store/slices/userSlice";
-import { updateUserProfile } from "../services/firestore";
+import { updateUserProfile, getUserProfile } from "../services/firestore";
 import { uploadAvatar } from "../services/storage";
 import { uploadUserAvatar } from "../services/avatarFlow";
 
@@ -51,6 +51,15 @@ const EditProfileScreen = ({ navigation }: { navigation: any }) => {
           position,
           avatarUrl,
         });
+        // Re-fetch persisted profile for canonical data
+        try {
+          const fresh = await getUserProfile(userId);
+          if (fresh) {
+            dispatch(updateProfile(fresh as any));
+          }
+        } catch (e) {
+          console.warn('Post-save fetch failed', e);
+        }
         Alert.alert("Saved", "Profile updated");
         navigation.goBack();
       } catch (err) {
