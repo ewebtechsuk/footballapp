@@ -23,7 +23,7 @@ import { subscribeDevUser } from './services/devAuth';
 import { useEffect, useState } from 'react';
 import { Provider } from 'react-redux';
 import store from './store';
-import { setUser as setUserAction } from './store/slices/userSlice';
+import { setUser as setUserAction, clearUser as clearUserAction, updateProfile as updateProfileAction } from './store/slices/userSlice';
 
 const Stack = createNativeStackNavigator();
 
@@ -52,7 +52,44 @@ const App = () => {
       // fall back to normal auth subscription
     }
     
-    const unsub = onAuthStateChanged(auth, (u) => setUser(u));
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      try {
+        if (u) {
+          // Push core auth fields into redux so profile screens have an id & email.
+          store.dispatch(
+            setUserAction({
+              id: u.uid,
+              name: (u as any).displayName ?? null,
+              email: u.email ?? null,
+              teams: [],
+            } as any)
+          );
+          // Attempt to load extended profile fields from Firestore (best-effort, non-blocking)
+          (async () => {
+            try {
+              const { getDoc, doc } = await import('firebase/firestore');
+              const { db } = await import('./services/firebase');
+              const ref = doc(db, 'users', u.uid);
+              const snap = await getDoc(ref);
+              if (snap.exists()) {
+                const data: any = snap.data();
+                // Merge additional profile fields like displayName, bio, position, avatarUrl
+                store.dispatch(updateProfileAction(data));
+              }
+            } catch (e) {
+              // eslint-disable-next-line no-console
+              console.warn('Failed to load extended profile', e);
+            }
+          })();
+        } else {
+          store.dispatch(clearUserAction());
+        }
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.warn('Auth state dispatch failed', e);
+      }
+    });
     // Also subscribe to devAuth changes so setting dev user flips UI immediately
     const unsubDev = subscribeDevUser((u) => setUser(u as any));
     return () => {
