@@ -12,7 +12,7 @@ const walletSlice = createSlice({
   name: 'wallet',
   initialState,
   reducers: {
-    creditWallet: (state, action: PayloadAction<number>) => {
+    creditWallet: (state: WalletState, action: PayloadAction<number>) => {
       state.credits += action.payload;
     },
   },

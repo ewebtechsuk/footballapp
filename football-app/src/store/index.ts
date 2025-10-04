@@ -1,7 +1,7 @@
 import { configureStore } from '@reduxjs/toolkit';
 
-import teamsReducer from './slices/teamsSlice';
-import walletReducer from './slices/walletSlice';
+import teamsReducer, { TeamsState } from './slices/teamsSlice';
+import walletReducer, { WalletState } from './slices/walletSlice';
 
 export const store = configureStore({
   reducer: {
@@ -10,5 +10,8 @@ export const store = configureStore({
   },
 });
 
-export type RootState = ReturnType<typeof store.getState>;
+export interface RootState {
+  teams: TeamsState;
+  wallet: WalletState;
+}
 export type AppDispatch = typeof store.dispatch;

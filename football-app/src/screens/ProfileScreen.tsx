@@ -3,9 +3,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { useAppSelector } from '../store/hooks';
+import type { RootState } from '../store';
 
 const ProfileScreen: React.FC = () => {
-  const credits = useAppSelector((state) => state.wallet.credits);
+  const credits = useAppSelector((state: RootState) => state.wallet.credits);
 
   return (
     <SafeAreaView style={styles.safeArea}>

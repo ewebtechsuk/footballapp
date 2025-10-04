@@ -6,7 +6,7 @@ export interface Team {
   members: string[];
 }
 
-interface TeamsState {
+export interface TeamsState {
   teams: Team[];
 }
 
@@ -18,11 +18,11 @@ const teamsSlice = createSlice({
   name: 'teams',
   initialState,
   reducers: {
-    addTeam: (state, action: PayloadAction<Team>) => {
+    addTeam: (state: TeamsState, action: PayloadAction<Team>) => {
       state.teams.push(action.payload);
     },
-    removeTeam: (state, action: PayloadAction<string>) => {
-      state.teams = state.teams.filter((team) => team.id !== action.payload);
+    removeTeam: (state: TeamsState, action: PayloadAction<string>) => {
+      state.teams = state.teams.filter((team: Team) => team.id !== action.payload);
     },
   },
 });

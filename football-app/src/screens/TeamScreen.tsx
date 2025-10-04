@@ -8,14 +8,15 @@ import { useNavigation } from '@react-navigation/native';
 import TeamCard from '../components/TeamCard';
 import { defaultBannerSize, teamBannerAdUnitId } from '../config/ads';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { removeTeam } from '../store/slices/teamsSlice';
+import { removeTeam, Team } from '../store/slices/teamsSlice';
+import type { RootState } from '../store';
 import { RootStackParamList } from '../types/navigation';
 
 type TeamScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Team'>;
 
 const TeamScreen: React.FC = () => {
   const dispatch = useAppDispatch();
-  const teams = useAppSelector((state) => state.teams.teams);
+  const teams = useAppSelector((state: RootState) => state.teams.teams);
   const navigation = useNavigation<TeamScreenNavigationProp>();
 
   return (
@@ -24,9 +25,9 @@ const TeamScreen: React.FC = () => {
         <Text style={styles.title}>My Teams</Text>
         <FlatList
           data={teams}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item: Team) => item.id}
           contentContainerStyle={styles.listContent}
-          renderItem={({ item }) => (
+          renderItem={({ item }: { item: Team }) => (
             <TeamCard team={item} onRemove={() => dispatch(removeTeam(item.id))} />
           )}
           ListEmptyComponent={<Text style={styles.emptyText}>Create your first team to get started.</Text>}

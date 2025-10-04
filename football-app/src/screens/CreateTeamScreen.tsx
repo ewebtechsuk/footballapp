@@ -18,7 +18,7 @@ const CreateTeamScreen: React.FC = () => {
 
   const trimmedName = useMemo(() => name.trim(), [name]);
   const members = useMemo(
-    () => membersText.split(',').map((member) => member.trim()).filter(Boolean),
+    () => membersText.split(',').map((member: string) => member.trim()).filter(Boolean),
     [membersText],
   );
 

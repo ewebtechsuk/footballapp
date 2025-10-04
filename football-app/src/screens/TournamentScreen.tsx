@@ -5,13 +5,14 @@ import { useRewardedAd } from 'react-native-google-mobile-ads';
 
 import { tournamentRewardedAdUnitId } from '../config/ads';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
+import type { RootState } from '../store';
 import { creditWallet } from '../store/slices/walletSlice';
 
 const REWARD_AMOUNT = 5;
 
 const TournamentScreen: React.FC = () => {
   const dispatch = useAppDispatch();
-  const credits = useAppSelector((state) => state.wallet.credits);
+  const credits = useAppSelector((state: RootState) => state.wallet.credits);
   const requestOptions = useMemo(() => ({ requestNonPersonalizedAdsOnly: true }), []);
   const { isLoaded, isClosed, load, show, reward, error } = useRewardedAd(
     tournamentRewardedAdUnitId,
