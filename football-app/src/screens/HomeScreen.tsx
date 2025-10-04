@@ -14,19 +14,20 @@ const HomeScreen = ({ navigation }) => {
             <Text>Welcome to the Football App!</Text>
             <Button
                 title="Manage Teams"
-                onPress={() => navigation.navigate(ROUTES.TEAM)}
+                onPress={() => navigation.navigate('Team')}
             />
             <Button
                 title="Create a Team"
-                onPress={() => navigation.navigate(ROUTES.CREATE_TEAM)}
+                onPress={() => navigation.navigate('Create Team')}
             />
             <Button
                 title="Join Tournaments"
-                onPress={() => navigation.navigate(ROUTES.TOURNAMENTS)}
+                onPress={() => navigation.navigate('Tournaments')}
             />
             <Button
                 title="Profile"
-                onPress={() => navigation.navigate(ROUTES.PROFILE)}
+                onPress={() => navigation.navigate('Profile')}
+
             />
         </View>
     );
