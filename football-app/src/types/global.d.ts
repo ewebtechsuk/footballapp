@@ -37,6 +37,7 @@ declare module 'react-native' {
   export const FlatList: any;
   export const TextInput: any;
   export const Alert: any;
+  export const ActivityIndicator: any;
   export const Image: any;
   export const Platform: any;
   export const Linking: any;

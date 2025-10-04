@@ -7,7 +7,7 @@
   "scripts": {
     "start": "react-native start",
     "build": "react-native build",
-    "test": "jest",
+    "test": "node scripts/run-tests.js",
     "eject": "react-native eject"
   },
   "dependencies": {
@@ -30,13 +30,8 @@
     "@types/react": "^19.1.11",
     "@types/react-native": "^0.73.0",
     "@types/react-redux": "^7.1.34",
-    "babel-jest": "^27.0.6",
-    "jest": "^27.0.6",
     "typescript": "^5.1.6"
-
   },
-  "dependencies": {},
-  "devDependencies": {},
   "localDependencies": [
     "@react-navigation/native",
     "@react-navigation/native-stack",
