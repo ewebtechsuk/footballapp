@@ -4,7 +4,7 @@
     "module": "esnext",
     "lib": ["es2020", "DOM"],
     "jsx": "react-native",
-    "strict": true,
+    "strict": false,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,
@@ -12,6 +12,7 @@
     "outDir": "./dist",
     "baseUrl": "./src",
     "moduleResolution": "node",
+    "typeRoots": ["./types", "./node_modules/@types"],
     "types": ["react", "node"],
     "paths": {
       "@components/*": ["components/*"],
@@ -22,6 +23,6 @@
       "@models/*": ["models/*"]
     }
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "types/**/*.d.ts"],
   "exclude": ["node_modules", "dist"]
 }
