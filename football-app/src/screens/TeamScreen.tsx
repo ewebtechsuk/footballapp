@@ -2,15 +2,21 @@ import React from 'react';
 import { StyleSheet, View, Text, FlatList, Button } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BannerAd } from 'react-native-google-mobile-ads';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation } from '@react-navigation/native';
 
 import TeamCard from '../components/TeamCard';
 import { defaultBannerSize, teamBannerAdUnitId } from '../config/ads';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { removeTeam } from '../store/slices/teamsSlice';
+import { RootStackParamList } from '../types/navigation';
+
+type TeamScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Team'>;
 
 const TeamScreen: React.FC = () => {
   const dispatch = useAppDispatch();
   const teams = useAppSelector((state) => state.teams.teams);
+  const navigation = useNavigation<TeamScreenNavigationProp>();
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -25,7 +31,7 @@ const TeamScreen: React.FC = () => {
           )}
           ListEmptyComponent={<Text style={styles.emptyText}>Create your first team to get started.</Text>}
         />
-        <Button title="Create New Team" onPress={() => {}} />
+        <Button title="Create New Team" onPress={() => navigation.navigate('CreateTeam')} />
       </View>
       <View style={styles.adContainer}>
         <BannerAd unitId={teamBannerAdUnitId} size={defaultBannerSize} />

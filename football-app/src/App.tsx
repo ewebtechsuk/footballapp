@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Provider } from 'react-redux';
 import mobileAds, { MaxAdContentRating } from 'react-native-google-mobile-ads';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import HomeScreen from './screens/HomeScreen';
 import TeamScreen from './screens/TeamScreen';
@@ -25,15 +26,17 @@ const App = () => {
 
   return (
     <Provider store={store}>
-      <NavigationContainer>
-        <Stack.Navigator initialRouteName="Home">
-          <Stack.Screen name="Home" component={HomeScreen} />
-          <Stack.Screen name="Team" component={TeamScreen} />
-          <Stack.Screen name="CreateTeam" component={CreateTeamScreen} />
-          <Stack.Screen name="Tournaments" component={TournamentScreen} />
-          <Stack.Screen name="Profile" component={ProfileScreen} />
-        </Stack.Navigator>
-      </NavigationContainer>
+      <SafeAreaProvider>
+        <NavigationContainer>
+          <Stack.Navigator initialRouteName="Home">
+            <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen name="Team" component={TeamScreen} />
+            <Stack.Screen name="CreateTeam" component={CreateTeamScreen} />
+            <Stack.Screen name="Tournaments" component={TournamentScreen} />
+            <Stack.Screen name="Profile" component={ProfileScreen} />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </SafeAreaProvider>
     </Provider>
   );
 };
