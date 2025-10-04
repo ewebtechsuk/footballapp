@@ -9,14 +9,13 @@ import TeamCard from '../components/TeamCard';
 import { defaultBannerSize, teamBannerAdUnitId } from '../config/ads';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { removeTeam, Team } from '../store/slices/teamsSlice';
-import type { RootState } from '../store';
 import { RootStackParamList } from '../types/navigation';
 
 type TeamScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Team'>;
 
 const TeamScreen: React.FC = () => {
   const dispatch = useAppDispatch();
-  const teams = useAppSelector((state: RootState) => state.teams.teams);
+  const teams = useAppSelector((state) => state.teams.teams);
   const navigation = useNavigation<TeamScreenNavigationProp>();
 
   return (
