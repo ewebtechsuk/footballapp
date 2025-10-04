@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "A football app for users to create and manage their own teams, enter tournaments, and compete for prizes.",
   "main": "src/App.tsx",
+  "private": true,
   "scripts": {
     "start": "react-native start",
     "build": "react-native build",
@@ -32,7 +33,23 @@
     "babel-jest": "^27.0.6",
     "jest": "^27.0.6",
     "typescript": "^5.1.6"
+
   },
+  "dependencies": {},
+  "devDependencies": {},
+  "localDependencies": [
+    "@react-navigation/native",
+    "@react-navigation/native-stack",
+    "@reduxjs/toolkit",
+    "axios",
+    "firebase",
+    "react",
+    "react-native",
+    "react-native-safe-area-context",
+    "react-native-screens",
+    "react-redux",
+    "redux"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/yourusername/football-app.git"

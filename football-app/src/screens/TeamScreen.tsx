@@ -13,6 +13,7 @@ import { RootStackParamList } from '../types/navigation';
 
 type TeamScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Team'>;
 
+
 const TeamScreen: React.FC = () => {
   const dispatch = useAppDispatch();
   const teams = useAppSelector((state) => state.teams.teams);
@@ -62,5 +63,6 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
 });
+
 
 export default TeamScreen;

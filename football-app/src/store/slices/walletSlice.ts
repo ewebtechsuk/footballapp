@@ -19,4 +19,5 @@ const walletSlice = createSlice({
 });
 
 export const { creditWallet } = walletSlice.actions;
+
 export default walletSlice.reducer;

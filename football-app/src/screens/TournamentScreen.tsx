@@ -70,6 +70,7 @@ const TournamentScreen: React.FC = () => {
         </View>
       </View>
     </SafeAreaView>
+
   );
 };
 
@@ -115,5 +116,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 });
+
 
 export default TournamentScreen;

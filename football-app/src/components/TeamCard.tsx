@@ -8,11 +8,13 @@ interface TeamCardProps {
   onRemove: () => void;
 }
 
+
 const TeamCard: React.FC<TeamCardProps> = ({ team, onRemove }) => {
   return (
     <View style={styles.card}>
       <Text style={styles.name}>{team.name}</Text>
       <Text style={styles.memberCount}>{team.members.length} members</Text>
+
       <TouchableOpacity onPress={onRemove} style={styles.removeButton}>
         <Text style={styles.removeButtonText}>Remove</Text>
       </TouchableOpacity>
@@ -47,6 +49,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 6,
+
+
   },
   removeButtonText: {
     color: '#fff',

@@ -31,6 +31,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           <View style={styles.buttonWrapper}>
             <Button title="Profile" onPress={() => navigation.navigate('Profile')} />
           </View>
+
         </View>
       </View>
       <BannerAdSlot unitId={homeBannerAdUnitId} size={defaultBannerSize} />

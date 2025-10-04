@@ -4,6 +4,7 @@ export interface Team {
   id: string;
   name: string;
   members: string[];
+
 }
 
 export interface TeamsState {
@@ -28,4 +29,5 @@ const teamsSlice = createSlice({
 });
 
 export const { addTeam, removeTeam } = teamsSlice.actions;
+
 export default teamsSlice.reducer;
