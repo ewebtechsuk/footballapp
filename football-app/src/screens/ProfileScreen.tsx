@@ -9,25 +9,53 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import type { Product, ProductPurchase, PurchaseError } from 'react-native-iap';
 
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { creditWallet } from '../store/slices/walletSlice';
 import type { CreditPackage } from '../config/purchases';
+import {
+  PREMIUM_FEATURE_BENEFITS,
+  PREMIUM_PRODUCT_IDS,
+} from '../config/purchases';
 import {
   getCreditPackages,
   purchaseCreditPackage,
   restorePurchaseHistory,
   syncWallet,
 } from '../services/payments';
+import {
+  endIapConnection,
+  fetchProducts,
+  finishPremiumPurchase,
+  initIapConnection,
+  registerPurchaseListener,
+  requestPremiumPurchase,
+  restorePremiumPurchases,
+} from '../services/iap';
+import {
+  loadPremiumEntitlement,
+  persistPremiumEntitlement,
+} from '../services/premiumStorage';
+import {
+  grantPremium,
+  hydratePremium,
+} from '../store/slices/premiumSlice';
 
 const ProfileScreen: React.FC = () => {
   const dispatch = useAppDispatch();
   const credits = useAppSelector((state) => state.wallet.credits);
+  const premium = useAppSelector((state) => state.premium);
 
   const [availablePackages, setAvailablePackages] = useState<CreditPackage[]>([]);
   const [loadingPackages, setLoadingPackages] = useState(true);
   const [processingPackageId, setProcessingPackageId] = useState<string | null>(null);
-  const [restoringPurchases, setRestoringPurchases] = useState(false);
+  const [restoringCreditPurchases, setRestoringCreditPurchases] = useState(false);
+  const [premiumProducts, setPremiumProducts] = useState<Product[]>([]);
+  const [loadingPremium, setLoadingPremium] = useState(true);
+  const [premiumError, setPremiumError] = useState<string | null>(null);
+  const [unlockingProductId, setUnlockingProductId] = useState<string | null>(null);
+  const [restoringPremium, setRestoringPremium] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -59,6 +87,94 @@ const ProfileScreen: React.FC = () => {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    let removePurchaseListener: (() => void) | undefined;
+
+    const hydrateEntitlement = async () => {
+      const storedEntitlement = await loadPremiumEntitlement();
+      if (storedEntitlement && mounted) {
+        dispatch(hydratePremium(storedEntitlement));
+      }
+    };
+
+    const bootstrapPremium = async () => {
+      await hydrateEntitlement();
+
+      const connected = await initIapConnection();
+      if (!connected) {
+        if (mounted) {
+          setPremiumError('Unable to connect to the billing service right now.');
+          setLoadingPremium(false);
+        }
+        return;
+      }
+
+      removePurchaseListener = registerPurchaseListener(
+        async (purchase: ProductPurchase) => {
+          if (!PREMIUM_PRODUCT_IDS.includes(purchase.productId)) {
+            return;
+          }
+
+          const receipt = purchase.transactionReceipt;
+          if (!receipt) {
+            return;
+          }
+
+          await finishPremiumPurchase(purchase);
+
+          const purchaseDateIso = purchase.transactionDate
+            ? new Date(Number(purchase.transactionDate)).toISOString()
+            : new Date().toISOString();
+
+          dispatch(
+            grantPremium({
+              productId: purchase.productId,
+              purchaseDate: purchaseDateIso,
+            }),
+          );
+
+          await persistPremiumEntitlement({
+            entitled: true,
+            entitlementProductId: purchase.productId,
+            lastPurchaseDate: purchaseDateIso,
+          });
+
+          if (mounted) {
+            setUnlockingProductId(null);
+            setPremiumError(null);
+          }
+
+          Alert.alert(
+            'Premium unlocked',
+            'You now have access to all premium features.',
+          );
+        },
+        (error: PurchaseError) => {
+          console.error('Premium purchase failed', error);
+          if (mounted) {
+            setPremiumError(error.message);
+            setUnlockingProductId(null);
+          }
+        },
+      );
+
+      const products = await fetchProducts(PREMIUM_PRODUCT_IDS);
+      if (mounted) {
+        setPremiumProducts(products);
+        setLoadingPremium(false);
+      }
+    };
+
+    bootstrapPremium();
+
+    return () => {
+      mounted = false;
+      removePurchaseListener?.();
+      endIapConnection();
+    };
+  }, [dispatch]);
 
   const walletSummary = useMemo(
     () => ({
@@ -96,12 +212,12 @@ const ProfileScreen: React.FC = () => {
     }
   };
 
-  const handleRestorePurchases = async () => {
-    if (restoringPurchases) {
+  const handleRestoreCreditPurchases = async () => {
+    if (restoringCreditPurchases) {
       return;
     }
 
-    setRestoringPurchases(true);
+    setRestoringCreditPurchases(true);
     try {
       const history = await restorePurchaseHistory();
 
@@ -131,7 +247,71 @@ const ProfileScreen: React.FC = () => {
         'We were unable to restore purchases. Please try again shortly.',
       );
     } finally {
-      setRestoringPurchases(false);
+      setRestoringCreditPurchases(false);
+    }
+  };
+
+  const handleUnlockPremium = async (productId: string) => {
+    if (unlockingProductId) {
+      return;
+    }
+
+    setPremiumError(null);
+    setUnlockingProductId(productId);
+    try {
+      await requestPremiumPurchase(productId);
+    } catch (error) {
+      console.error('Failed to initiate premium purchase', error);
+      setPremiumError('Unable to start the purchase flow. Please try again.');
+      setUnlockingProductId(null);
+    }
+  };
+
+  const handleRestorePremium = async () => {
+    if (restoringPremium) {
+      return;
+    }
+
+    setRestoringPremium(true);
+    try {
+      const purchases = await restorePremiumPurchases();
+      const premiumPurchase = purchases.find((purchase) =>
+        PREMIUM_PRODUCT_IDS.includes(purchase.productId),
+      );
+
+      if (!premiumPurchase) {
+        Alert.alert('No premium purchases', 'We could not find a premium unlock to restore.');
+        return;
+      }
+
+      await finishPremiumPurchase(premiumPurchase);
+
+      const purchaseDateIso = premiumPurchase.transactionDate
+        ? new Date(Number(premiumPurchase.transactionDate)).toISOString()
+        : new Date().toISOString();
+
+      dispatch(
+        grantPremium({
+          productId: premiumPurchase.productId,
+          purchaseDate: purchaseDateIso,
+        }),
+      );
+
+      await persistPremiumEntitlement({
+        entitled: true,
+        entitlementProductId: premiumPurchase.productId,
+        lastPurchaseDate: purchaseDateIso,
+      });
+
+      Alert.alert('Premium restored', 'Welcome back! Premium access has been restored.');
+    } catch (error) {
+      console.error('Failed to restore premium', error);
+      Alert.alert(
+        'Restore failed',
+        'We were unable to confirm a previous premium purchase. Please try again later.',
+      );
+    } finally {
+      setRestoringPremium(false);
     }
   };
 
@@ -194,20 +374,107 @@ const ProfileScreen: React.FC = () => {
         )}
 
         <TouchableOpacity
-          style={[styles.restoreButton, restoringPurchases && styles.restoreButtonDisabled]}
+          style={[styles.restoreButton, restoringCreditPurchases && styles.restoreButtonDisabled]}
           accessibilityRole="button"
-          accessibilityState={{ disabled: restoringPurchases }}
-          disabled={restoringPurchases}
-          onPress={handleRestorePurchases}
+          accessibilityState={{ disabled: restoringCreditPurchases }}
+          disabled={restoringCreditPurchases}
+          onPress={handleRestoreCreditPurchases}
         >
           <Text style={styles.restoreButtonText}>
-            {restoringPurchases ? 'Restoring purchases…' : 'Restore purchases'}
+            {restoringCreditPurchases ? 'Restoring purchases…' : 'Restore credit purchases'}
           </Text>
         </TouchableOpacity>
 
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Football App Premium</Text>
+          <Text style={styles.sectionSubtitle}>
+            Unlock pro-level tools to better manage and analyze your team.
+          </Text>
+        </View>
+
+        {loadingPremium ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator color="#2563eb" />
+          </View>
+        ) : premium.entitled ? (
+          <View style={styles.premiumStatusCard}>
+            <Text style={styles.premiumStatusTitle}>Premium active</Text>
+            {premium.lastPurchaseDate && (
+              <Text style={styles.premiumStatusSubtitle}>
+                Last confirmed {new Date(premium.lastPurchaseDate).toLocaleDateString()}
+              </Text>
+            )}
+
+            <View style={styles.benefitsList}>
+              {PREMIUM_FEATURE_BENEFITS.map((benefit) => (
+                <View key={benefit} style={styles.benefitItem}>
+                  <Text style={styles.benefitBullet}>•</Text>
+                  <Text style={styles.benefitText}>{benefit}</Text>
+                </View>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              style={[styles.restoreButton, restoringPremium && styles.restoreButtonDisabled]}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: restoringPremium }}
+              disabled={restoringPremium}
+              onPress={handleRestorePremium}
+            >
+              <Text style={styles.restoreButtonText}>
+                {restoringPremium ? 'Checking entitlement…' : 'Revalidate premium access'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.premiumUnlockContainer}>
+            {premiumError && <Text style={styles.errorText}>{premiumError}</Text>}
+            {premiumProducts.length ? (
+              premiumProducts.map((product) => {
+                const isUnlocking = unlockingProductId === product.productId;
+                return (
+                  <TouchableOpacity
+                    key={product.productId}
+                    style={styles.premiumProductCard}
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: isUnlocking }}
+                    disabled={isUnlocking}
+                    onPress={() => handleUnlockPremium(product.productId)}
+                  >
+                    <Text style={styles.premiumProductTitle}>{product.title}</Text>
+                    <Text style={styles.premiumProductPrice}>{product.localizedPrice}</Text>
+                    {!!product.description && (
+                      <Text style={styles.premiumProductDescription}>{product.description}</Text>
+                    )}
+                    <Text style={styles.premiumCta}>
+                      {isUnlocking ? 'Processing…' : 'Unlock premium'}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })
+            ) : (
+              <Text style={styles.emptyPremiumText}>
+                Premium products are not available yet. Please try again later.
+              </Text>
+            )}
+
+            <TouchableOpacity
+              style={[styles.restoreButton, restoringPremium && styles.restoreButtonDisabled]}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: restoringPremium }}
+              disabled={restoringPremium}
+              onPress={handleRestorePremium}
+            >
+              <Text style={styles.restoreButtonText}>
+                {restoringPremium ? 'Checking entitlement…' : 'Restore premium purchases'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <Text style={styles.disclaimer}>
-          In-app purchases are simulated in this build. Connect your billing provider to enable
-          live transactions.
+          In-app purchases require a configured billing provider. Use sandbox accounts when testing
+          premium unlocks and wallet top ups.
         </Text>
       </ScrollView>
     </SafeAreaView>
@@ -346,6 +613,82 @@ const styles = StyleSheet.create({
   restoreButtonText: {
     color: '#fff',
     fontWeight: '600',
+  },
+  premiumStatusCard: {
+    backgroundColor: '#1d4ed8',
+    borderRadius: 16,
+    padding: 20,
+    gap: 16,
+  },
+  premiumStatusTitle: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  premiumStatusSubtitle: {
+    color: '#cbd5f5',
+    fontSize: 12,
+  },
+  benefitsList: {
+    gap: 8,
+  },
+  benefitItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  benefitBullet: {
+    color: '#bfdbfe',
+    fontSize: 16,
+    lineHeight: 18,
+  },
+  benefitText: {
+    flex: 1,
+    color: '#e2e8f0',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  premiumUnlockContainer: {
+    gap: 16,
+  },
+  premiumProductCard: {
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+    borderRadius: 16,
+    padding: 16,
+    backgroundColor: '#eff6ff',
+    gap: 8,
+  },
+  premiumProductTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1e3a8a',
+  },
+  premiumProductPrice: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1d4ed8',
+  },
+  premiumProductDescription: {
+    fontSize: 13,
+    color: '#1e40af',
+    lineHeight: 18,
+  },
+  premiumCta: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1d4ed8',
+  },
+  emptyPremiumText: {
+    textAlign: 'center',
+    color: '#6b7280',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  errorText: {
+    color: '#dc2626',
+    fontSize: 13,
+    lineHeight: 18,
   },
   disclaimer: {
     fontSize: 12,
