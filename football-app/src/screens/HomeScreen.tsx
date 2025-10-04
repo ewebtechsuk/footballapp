@@ -1,6 +1,13 @@
 import React from 'react';
 import { View, Text, Button } from 'react-native';
 
+const ROUTES = {
+    TEAM: 'Team',
+    CREATE_TEAM: 'Create Team',
+    TOURNAMENTS: 'Tournaments',
+    PROFILE: 'Profile',
+} as const;
+
 const HomeScreen = ({ navigation }) => {
     return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -20,6 +27,7 @@ const HomeScreen = ({ navigation }) => {
             <Button
                 title="Profile"
                 onPress={() => navigation.navigate('Profile')}
+
             />
         </View>
     );

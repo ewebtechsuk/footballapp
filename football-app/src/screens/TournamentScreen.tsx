@@ -117,6 +117,7 @@ const TournamentScreen: React.FC = () => {
         renderItem={renderTournament}
         showsVerticalScrollIndicator={false}
       />
+
     </View>
   );
 };
@@ -203,5 +204,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
 
 export default TournamentScreen;
