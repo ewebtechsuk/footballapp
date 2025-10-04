@@ -13,9 +13,29 @@ import TournamentScreen from './screens/TournamentScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import { store } from './store';
 import { RootStackParamList } from './types/navigation';
+import { useAppDispatch } from './store/hooks';
+import { hydratePremium } from './store/slices/premiumSlice';
+import { loadPremiumEntitlement } from './services/premiumStorage';
 
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+const PremiumBootstrapper = () => {
+  const dispatch = useAppDispatch();
+
+  useEffect(() => {
+    const hydrate = async () => {
+      const storedEntitlement = await loadPremiumEntitlement();
+      if (storedEntitlement) {
+        dispatch(hydratePremium(storedEntitlement));
+      }
+    };
+
+    hydrate();
+  }, [dispatch]);
+
+  return null;
+};
 
 const App = () => {
   useEffect(() => {
@@ -29,6 +49,7 @@ const App = () => {
   return (
     <Provider store={store}>
       <SafeAreaProvider>
+        <PremiumBootstrapper />
         <NavigationContainer>
           <Stack.Navigator initialRouteName="Home">
             <Stack.Screen name="Home" component={HomeScreen} />
