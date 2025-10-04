@@ -1,12 +1,12 @@
 import React from 'react';
 import { View, Text, Button, FlatList } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '../store';
+import { RootState, AppDispatch } from '../store';
 import { removeTeam } from '../store/slices/teamsSlice';
 import TeamCard from '../components/TeamCard';
 
 const TeamScreen = () => {
-    const dispatch = useDispatch();
+    const dispatch = useDispatch<AppDispatch>();
     const teams = useSelector((state: RootState) => state.teams.teams);
 
     const handleRemoveTeam = (teamId: string) => {
