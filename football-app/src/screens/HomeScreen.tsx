@@ -3,14 +3,7 @@ import { View, Text, Button, StyleSheet } from 'react-native';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../store';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-
-export type RootStackParamList = {
-  Home: undefined;
-  Teams: undefined;
-  CreateTeam: undefined;
-  Tournaments: undefined;
-  Profile: undefined;
-};
+import type { RootStackParamList } from '../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 

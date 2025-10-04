@@ -4,8 +4,8 @@ import { useDispatch } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
 import type { AppDispatch } from '../store';
 import { addTeam } from '../store/slices/teamsSlice';
-import type { RootStackParamList } from './HomeScreen';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../navigation/types';
 
 const CreateTeamScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();

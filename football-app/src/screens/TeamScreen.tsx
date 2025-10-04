@@ -6,8 +6,8 @@ import type { RootState, AppDispatch } from '../store';
 import { removeTeam } from '../store/slices/teamsSlice';
 import TeamCard from '../components/TeamCard';
 import AdvancedAnalytics from '../components/AdvancedAnalytics';
-import type { RootStackParamList } from './HomeScreen';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../navigation/types';
 
 const TeamScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
