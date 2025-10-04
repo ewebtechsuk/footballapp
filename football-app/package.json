@@ -8,7 +8,9 @@
     "start": "react-native start",
     "build": "react-native build",
     "test": "node scripts/run-tests.js",
-    "eject": "react-native eject"
+    "eject": "react-native eject",
+    "prepare:deps": "node scripts/link-node-modules.js",
+    "postinstall": "node scripts/link-node-modules.js"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^1.23.1",
