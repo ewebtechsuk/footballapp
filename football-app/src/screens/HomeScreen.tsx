@@ -7,19 +7,19 @@ const HomeScreen = ({ navigation }) => {
             <Text>Welcome to the Football App!</Text>
             <Button
                 title="Manage Teams"
-                onPress={() => navigation.navigate('TeamScreen')}
+                onPress={() => navigation.navigate('Team')}
             />
             <Button
                 title="Create a Team"
-                onPress={() => navigation.navigate('CreateTeamScreen')}
+                onPress={() => navigation.navigate('Create Team')}
             />
             <Button
                 title="Join Tournaments"
-                onPress={() => navigation.navigate('TournamentScreen')}
+                onPress={() => navigation.navigate('Tournaments')}
             />
             <Button
                 title="Profile"
-                onPress={() => navigation.navigate('ProfileScreen')}
+                onPress={() => navigation.navigate('Profile')}
             />
         </View>
     );
