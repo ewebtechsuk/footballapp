@@ -12,6 +12,7 @@ const FALLBACK_REWARD_AMOUNT = 5;
 const TournamentScreen: React.FC = () => {
   const dispatch = useAppDispatch();
   const credits = useAppSelector((state) => state.wallet.credits);
+  const isPremium = useAppSelector((state) => state.premium.entitled);
   const requestOptions = useMemo(() => ({ requestNonPersonalizedAdsOnly: true }), []);
   const { isLoaded, isClosed, load, show, reward, error } = useRewardedAd(
     tournamentRewardedAdUnitId,
@@ -68,6 +69,21 @@ const TournamentScreen: React.FC = () => {
             <Text style={styles.helperText}>Tap the button again if the ad is still loading.</Text>
           )}
         </View>
+
+        {isPremium ? (
+          <View style={styles.premiumInsights}>
+            <Text style={styles.premiumInsightsTitle}>Premium tournament insights</Text>
+            <Text style={styles.premiumInsightsDetail}>Next best event: Elite Cup (opens in 3 days)</Text>
+            <Text style={styles.premiumInsightsDetail}>Recommended entry fee budget: 120 credits</Text>
+          </View>
+        ) : (
+          <View style={styles.premiumUpsell}>
+            <Text style={styles.premiumUpsellText}>
+              Premium members get tournament recommendations tailored to their squad. Unlock from
+              the Profile screen.
+            </Text>
+          </View>
+        )}
       </View>
     </SafeAreaView>
 
@@ -114,6 +130,35 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#16a34a',
     marginBottom: 12,
+  },
+  premiumInsights: {
+    marginTop: 24,
+    padding: 20,
+    borderRadius: 16,
+    backgroundColor: '#ecfccb',
+    gap: 8,
+  },
+  premiumInsightsTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#365314',
+  },
+  premiumInsightsDetail: {
+    fontSize: 13,
+    color: '#3f6212',
+  },
+  premiumUpsell: {
+    marginTop: 24,
+    padding: 20,
+    borderRadius: 16,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#cbd5f5',
+  },
+  premiumUpsellText: {
+    fontSize: 13,
+    color: '#475569',
+    lineHeight: 18,
   },
 });
 

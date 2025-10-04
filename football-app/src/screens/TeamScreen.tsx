@@ -17,6 +17,7 @@ type TeamScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'T
 const TeamScreen: React.FC = () => {
   const dispatch = useAppDispatch();
   const teams = useAppSelector((state) => state.teams.teams);
+  const isPremium = useAppSelector((state) => state.premium.entitled);
   const navigation = useNavigation<TeamScreenNavigationProp>();
 
   return (
@@ -32,6 +33,26 @@ const TeamScreen: React.FC = () => {
           )}
           ListEmptyComponent={<Text style={styles.emptyText}>Create your first team to get started.</Text>}
         />
+
+        <View style={styles.analyticsSection}>
+          <Text style={styles.analyticsTitle}>Team analytics</Text>
+          {isPremium ? (
+            <View style={styles.analyticsContent}>
+              <Text style={styles.analyticsMetric}>Form (last 5): W • W • D • L • W</Text>
+              <Text style={styles.analyticsMetric}>Projected seed: #3 in current tournament</Text>
+              <Text style={styles.analyticsHint}>
+                These insights refresh automatically after each recorded match.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.analyticsUpsell}>
+              <Text style={styles.analyticsUpsellText}>
+                Upgrade to Football App Premium to unlock match insights and projections.
+              </Text>
+              <Button title="View premium" onPress={() => navigation.navigate('Profile')} />
+            </View>
+          )}
+        </View>
         <Button title="Create New Team" onPress={() => navigation.navigate('CreateTeam')} />
       </View>
       <BannerAdSlot unitId={teamBannerAdUnitId} size={defaultBannerSize} />
@@ -61,6 +82,39 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#6b7280',
     marginTop: 24,
+  },
+  analyticsSection: {
+    marginVertical: 24,
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    gap: 16,
+  },
+  analyticsTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  analyticsContent: {
+    gap: 8,
+  },
+  analyticsMetric: {
+    fontSize: 14,
+    color: '#1e293b',
+  },
+  analyticsHint: {
+    fontSize: 12,
+    color: '#64748b',
+  },
+  analyticsUpsell: {
+    gap: 12,
+  },
+  analyticsUpsellText: {
+    fontSize: 13,
+    color: '#475569',
+    lineHeight: 18,
   },
 });
 

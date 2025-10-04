@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 export interface CreditPackage {
   id: string;
   name: string;
@@ -30,4 +32,17 @@ export const CREDIT_PACKAGES: CreditPackage[] = [
     credits: 190,
     priceLabel: '$5.99',
   },
+];
+
+export const PREMIUM_PRODUCT_IDS: string[] =
+  Platform.select({
+    ios: ['com.footballapp.premium.unlock'],
+    android: ['com.footballapp.premium.unlock'],
+    default: ['com.footballapp.premium.unlock'],
+  }) ?? ['com.footballapp.premium.unlock'];
+
+export const PREMIUM_FEATURE_BENEFITS: string[] = [
+  'Advanced performance analytics for every match',
+  'Early access to tournament registrations',
+  'Exclusive strategy tips from pro managers',
 ];
