@@ -3,10 +3,8 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 export interface Team {
   id: string;
   name: string;
-  coach?: string;
-  city?: string;
-  founded?: number;
-  players?: string[];
+  members: string[];
+
 }
 
 export interface TeamsState {
@@ -21,12 +19,15 @@ const teamsSlice = createSlice({
   name: 'teams',
   initialState,
   reducers: {
-    removeTeam: (state, action: PayloadAction<string>) => {
-      state.teams = state.teams.filter((team) => team.id !== action.payload);
+    addTeam: (state: TeamsState, action: PayloadAction<Team>) => {
+      state.teams.push(action.payload);
+    },
+    removeTeam: (state: TeamsState, action: PayloadAction<string>) => {
+      state.teams = state.teams.filter((team: Team) => team.id !== action.payload);
     },
   },
 });
 
-export const { removeTeam } = teamsSlice.actions;
+export const { addTeam, removeTeam } = teamsSlice.actions;
 
 export default teamsSlice.reducer;

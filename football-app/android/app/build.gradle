@@ -1,0 +1,8 @@
+android {
+    defaultConfig {
+        manifestPlaceholders = [
+            googleMobileAdsAppId: System.getenv("GOOGLE_MOBILE_ADS_APP_ID")
+                ?: "ca-app-pub-3940256099942544~3347511713"
+        ]
+    }
+}

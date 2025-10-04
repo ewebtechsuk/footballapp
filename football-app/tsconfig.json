@@ -12,7 +12,6 @@
     "outDir": "./dist",
     "baseUrl": "./src",
     "moduleResolution": "node",
-  "types": ["react", "node"],
     "paths": {
       "@components/*": ["components/*"],
       "@screens/*": ["screens/*"],

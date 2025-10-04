@@ -1,34 +1,68 @@
 import React from 'react';
-import { View, Text, Button, FlatList } from 'react-native';
-import { useSelector, useDispatch } from 'react-redux';
-import { RootState, AppDispatch } from '../store';
-import { removeTeam } from '../store/slices/teamsSlice';
+import { StyleSheet, View, Text, FlatList, Button } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation } from '@react-navigation/native';
+
 import TeamCard from '../components/TeamCard';
+import BannerAdSlot from '../components/BannerAdSlot';
+import { defaultBannerSize, teamBannerAdUnitId } from '../config/ads';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { removeTeam, Team } from '../store/slices/teamsSlice';
+import { RootStackParamList } from '../types/navigation';
 
-const TeamScreen = () => {
-    const dispatch = useDispatch<AppDispatch>();
-    const teams = useSelector((state: RootState) => state.teams.teams);
+type TeamScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Team'>;
 
-    const handleRemoveTeam = (teamId: string) => {
-        dispatch(removeTeam(teamId));
-    };
 
-    return (
-        <View style={{ flex: 1, padding: 16 }}>
-            <Text style={{ fontSize: 24, fontWeight: 'bold' }}>My Teams</Text>
-            <FlatList
-                data={teams}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
-                    <TeamCard
-                        team={item}
-                        onRemove={() => handleRemoveTeam(item.id)}
-                    />
-                )}
-            />
-            <Button title="Create New Team" onPress={() => {/* Navigate to CreateTeamScreen */}} />
-        </View>
-    );
+const TeamScreen: React.FC = () => {
+  const dispatch = useAppDispatch();
+  const teams = useAppSelector((state) => state.teams.teams);
+  const navigation = useNavigation<TeamScreenNavigationProp>();
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.content}>
+        <Text style={styles.title}>My Teams</Text>
+        <FlatList
+          data={teams}
+          keyExtractor={(item: Team) => item.id}
+          contentContainerStyle={styles.listContent}
+          renderItem={({ item }: { item: Team }) => (
+            <TeamCard team={item} onRemove={() => dispatch(removeTeam(item.id))} />
+          )}
+          ListEmptyComponent={<Text style={styles.emptyText}>Create your first team to get started.</Text>}
+        />
+        <Button title="Create New Team" onPress={() => navigation.navigate('CreateTeam')} />
+      </View>
+      <BannerAdSlot unitId={teamBannerAdUnitId} size={defaultBannerSize} />
+    </SafeAreaView>
+  );
 };
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#f9fafb',
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
+  listContent: {
+    paddingBottom: 16,
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#6b7280',
+    marginTop: 24,
+  },
+});
+
 
 export default TeamScreen;

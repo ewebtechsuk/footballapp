@@ -1,36 +1,67 @@
 import React from 'react';
-import { View, Text, Button } from 'react-native';
+import { StyleSheet, View, Text, Button } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-const ROUTES = {
-    TEAM: 'Team',
-    CREATE_TEAM: 'Create Team',
-    TOURNAMENTS: 'Tournaments',
-    PROFILE: 'Profile',
-} as const;
+import BannerAdSlot from '../components/BannerAdSlot';
+import { defaultBannerSize, homeBannerAdUnitId } from '../config/ads';
+import { RootStackParamList } from '../types/navigation';
 
-const HomeScreen = ({ navigation }) => {
-    return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <Text>Welcome to the Football App!</Text>
-            <Button
-                title="Manage Teams"
-                onPress={() => navigation.navigate('Team')}
-            />
-            <Button
-                title="Create a Team"
-                onPress={() => navigation.navigate('Create Team')}
-            />
-            <Button
-                title="Join Tournaments"
-                onPress={() => navigation.navigate('Tournaments')}
-            />
-            <Button
-                title="Profile"
-                onPress={() => navigation.navigate('Profile')}
+type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
-            />
+interface HomeScreenProps {
+  navigation: HomeScreenNavigationProp;
+}
+
+const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.content}>
+        <Text style={styles.title}>Welcome to the Football App!</Text>
+        <View style={styles.buttonGroup}>
+          <View style={styles.buttonWrapper}>
+            <Button title="Manage Teams" onPress={() => navigation.navigate('Team')} />
+          </View>
+          <View style={styles.buttonWrapper}>
+            <Button title="Create a Team" onPress={() => navigation.navigate('CreateTeam')} />
+          </View>
+          <View style={styles.buttonWrapper}>
+            <Button title="Join Tournaments" onPress={() => navigation.navigate('Tournaments')} />
+          </View>
+          <View style={styles.buttonWrapper}>
+            <Button title="Profile" onPress={() => navigation.navigate('Profile')} />
+          </View>
+
         </View>
-    );
+      </View>
+      <BannerAdSlot unitId={homeBannerAdUnitId} size={defaultBannerSize} />
+    </SafeAreaView>
+  );
 };
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#f3f4f6',
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 32,
+    textAlign: 'center',
+  },
+  buttonGroup: {
+    width: '100%',
+  },
+  buttonWrapper: {
+    marginBottom: 12,
+  },
+});
 
 export default HomeScreen;
