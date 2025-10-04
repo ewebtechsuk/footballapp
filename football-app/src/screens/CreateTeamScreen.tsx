@@ -1,31 +1,37 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
 import { useDispatch } from 'react-redux';
+import { useNavigation } from '@react-navigation/native';
 import type { AppDispatch } from '../store';
 import { addTeam } from '../store/slices/teamsSlice';
+import type { RootStackParamList } from './HomeScreen';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 const CreateTeamScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [name, setName] = useState('');
   const [coach, setCoach] = useState('');
 
-  const handleSubmit = () => {
+  const handleSubmit = useCallback(() => {
     if (!name.trim()) {
+      Alert.alert('Team name required', 'Please add a name so we can save your new team.');
       return;
     }
 
     dispatch(
       addTeam({
         id: Date.now().toString(),
-        name,
-        coach: coach || 'Unassigned',
+        name: name.trim(),
+        coach: coach.trim() || 'Unassigned',
         record: '0-0-0',
       })
     );
 
     setName('');
     setCoach('');
-  };
+    navigation.navigate('Teams');
+  }, [coach, dispatch, name, navigation]);
 
   return (
     <View style={styles.container}>

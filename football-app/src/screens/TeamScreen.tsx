@@ -1,15 +1,23 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { View, Text, Button, FlatList, StyleSheet } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
+import { useNavigation } from '@react-navigation/native';
 import type { RootState, AppDispatch } from '../store';
 import { removeTeam } from '../store/slices/teamsSlice';
 import TeamCard from '../components/TeamCard';
 import AdvancedAnalytics from '../components/AdvancedAnalytics';
+import type { RootStackParamList } from './HomeScreen';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 const TeamScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const teams = useSelector((state: RootState) => state.teams.teams);
   const isPremium = useSelector((state: RootState) => state.premium.isPremium);
+
+  const handleCreateTeam = useCallback(() => {
+    navigation.navigate('CreateTeam');
+  }, [navigation]);
 
   return (
     <View style={styles.container}>
@@ -32,7 +40,7 @@ const TeamScreen: React.FC = () => {
           </Text>
         </View>
       )}
-      <Button title="Create New Team" onPress={() => {}} />
+      <Button title="Create New Team" onPress={handleCreateTeam} />
     </View>
   );
 };
