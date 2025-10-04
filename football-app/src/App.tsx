@@ -20,18 +20,26 @@ const App = () => {
         <PremiumBootstrapper>
           <Stack.Navigator initialRouteName="Home">
             <Stack.Screen name="Home" component={HomeScreen} />
-            <Stack.Screen name="Team" component={TeamScreen} />
-            <Stack.Screen name="TeamScreen" component={TeamScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="Create Team" component={CreateTeamScreen} />
+            <Stack.Screen
+              name="TeamScreen"
+              component={TeamScreen}
+              options={{ title: 'Team' }}
+            />
             <Stack.Screen
               name="CreateTeamScreen"
               component={CreateTeamScreen}
-              options={{ headerShown: false }}
+              options={{ title: 'Create Team' }}
             />
-            <Stack.Screen name="Tournaments" component={TournamentScreen} />
-            <Stack.Screen name="TournamentScreen" component={TournamentScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="Profile" component={ProfileScreen} />
-            <Stack.Screen name="ProfileScreen" component={ProfileScreen} options={{ headerShown: false }} />
+            <Stack.Screen
+              name="TournamentScreen"
+              component={TournamentScreen}
+              options={{ title: 'Tournaments' }}
+            />
+            <Stack.Screen
+              name="ProfileScreen"
+              component={ProfileScreen}
+              options={{ title: 'Profile' }}
+            />
           </Stack.Navigator>
         </PremiumBootstrapper>
       </NavigationContainer>

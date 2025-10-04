@@ -19,10 +19,10 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
         <Text style={styles.subtitle}>Unlock premium for deeper analytics and insights.</Text>
       )}
       <View style={styles.actions}>
-        <Button title="Manage Teams" onPress={() => navigation.navigate('Team')} />
-        <Button title="Create a Team" onPress={() => navigation.navigate('Create Team')} />
-        <Button title="Join Tournaments" onPress={() => navigation.navigate('Tournaments')} />
-        <Button title="Profile" onPress={() => navigation.navigate('Profile')} />
+        <Button title="Manage Teams" onPress={() => navigation.navigate('TeamScreen')} />
+        <Button title="Create a Team" onPress={() => navigation.navigate('CreateTeamScreen')} />
+        <Button title="Join Tournaments" onPress={() => navigation.navigate('TournamentScreen')} />
+        <Button title="Profile" onPress={() => navigation.navigate('ProfileScreen')} />
       </View>
     </View>
   );

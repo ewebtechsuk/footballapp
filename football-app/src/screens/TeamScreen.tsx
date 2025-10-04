@@ -16,7 +16,7 @@ const TeamScreen: React.FC = () => {
   const isPremium = useSelector((state: RootState) => state.premium.isPremium);
 
   const handleCreateTeam = useCallback(() => {
-    navigation.navigate('Create Team');
+    navigation.navigate('CreateTeamScreen');
   }, [navigation]);
 
   return (
