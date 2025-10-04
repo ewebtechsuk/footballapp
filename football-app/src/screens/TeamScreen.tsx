@@ -1,11 +1,11 @@
 import React from 'react';
 import { StyleSheet, View, Text, FlatList, Button } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { BannerAd } from 'react-native-google-mobile-ads';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 
 import TeamCard from '../components/TeamCard';
+import BannerAdSlot from '../components/BannerAdSlot';
 import { defaultBannerSize, teamBannerAdUnitId } from '../config/ads';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { removeTeam, Team } from '../store/slices/teamsSlice';
@@ -33,9 +33,7 @@ const TeamScreen: React.FC = () => {
         />
         <Button title="Create New Team" onPress={() => navigation.navigate('CreateTeam')} />
       </View>
-      <View style={styles.adContainer}>
-        <BannerAd unitId={teamBannerAdUnitId} size={defaultBannerSize} />
-      </View>
+      <BannerAdSlot unitId={teamBannerAdUnitId} size={defaultBannerSize} />
     </SafeAreaView>
   );
 };
@@ -62,11 +60,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#6b7280',
     marginTop: 24,
-  },
-  adContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-    alignItems: 'center',
   },
 });
 

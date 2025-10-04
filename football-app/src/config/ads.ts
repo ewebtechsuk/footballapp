@@ -11,10 +11,18 @@ const {
   TOURNAMENT_REWARDED_AD_UNIT_ID,
 } = process.env as Record<string, string | undefined>;
 
-export const googleMobileAdsAppId = GOOGLE_MOBILE_ADS_APP_ID ?? GOOGLE_TEST_APP_ID;
-export const homeBannerAdUnitId = HOME_BANNER_AD_UNIT_ID ?? GOOGLE_TEST_BANNER_ID;
-export const teamBannerAdUnitId = TEAM_BANNER_AD_UNIT_ID ?? GOOGLE_TEST_BANNER_ID;
-export const tournamentRewardedAdUnitId =
-  TOURNAMENT_REWARDED_AD_UNIT_ID ?? GOOGLE_TEST_REWARDED_ID;
+const resolvedAppId = GOOGLE_MOBILE_ADS_APP_ID ?? GOOGLE_TEST_APP_ID;
+const shouldUseTestAds = __DEV__ || resolvedAppId === GOOGLE_TEST_APP_ID;
+
+const resolveAdUnitId = (maybeEnvValue: string | undefined, fallback: string) =>
+  shouldUseTestAds ? fallback : maybeEnvValue ?? fallback;
+
+export const googleMobileAdsAppId = resolvedAppId;
+export const homeBannerAdUnitId = resolveAdUnitId(HOME_BANNER_AD_UNIT_ID, GOOGLE_TEST_BANNER_ID);
+export const teamBannerAdUnitId = resolveAdUnitId(TEAM_BANNER_AD_UNIT_ID, GOOGLE_TEST_BANNER_ID);
+export const tournamentRewardedAdUnitId = resolveAdUnitId(
+  TOURNAMENT_REWARDED_AD_UNIT_ID,
+  GOOGLE_TEST_REWARDED_ID,
+);
 
 export const defaultBannerSize = BannerAdSize.ANCHORED_ADAPTIVE_BANNER;

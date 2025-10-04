@@ -1,9 +1,9 @@
 import React from 'react';
 import { StyleSheet, View, Text, Button } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { BannerAd } from 'react-native-google-mobile-ads';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
+import BannerAdSlot from '../components/BannerAdSlot';
 import { defaultBannerSize, homeBannerAdUnitId } from '../config/ads';
 import { RootStackParamList } from '../types/navigation';
 
@@ -33,9 +33,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           </View>
         </View>
       </View>
-      <View style={styles.adContainer}>
-        <BannerAd unitId={homeBannerAdUnitId} size={defaultBannerSize} />
-      </View>
+      <BannerAdSlot unitId={homeBannerAdUnitId} size={defaultBannerSize} />
     </SafeAreaView>
   );
 };
@@ -62,11 +60,6 @@ const styles = StyleSheet.create({
   },
   buttonWrapper: {
     marginBottom: 12,
-  },
-  adContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-    alignItems: 'center',
   },
 });
 

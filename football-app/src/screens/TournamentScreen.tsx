@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { StyleSheet, View, Text, Button, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRewardedAd } from 'react-native-google-mobile-ads';
@@ -7,7 +7,7 @@ import { tournamentRewardedAdUnitId } from '../config/ads';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { creditWallet } from '../store/slices/walletSlice';
 
-const REWARD_AMOUNT = 5;
+const FALLBACK_REWARD_AMOUNT = 5;
 
 const TournamentScreen: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -30,10 +30,20 @@ const TournamentScreen: React.FC = () => {
 
   useEffect(() => {
     if (reward) {
-      dispatch(creditWallet(REWARD_AMOUNT));
-      Alert.alert('Reward earned!', `You received ${REWARD_AMOUNT} credits.`);
+      const rewardAmount = reward.amount ?? FALLBACK_REWARD_AMOUNT;
+      dispatch(creditWallet(rewardAmount));
+      Alert.alert('Reward earned!', `You received ${rewardAmount} credits.`);
     }
   }, [reward, dispatch]);
+
+  const handleWatchToEarn = useCallback(() => {
+    if (isLoaded) {
+      show();
+      return;
+    }
+
+    load();
+  }, [isLoaded, load, show]);
 
   useEffect(() => {
     if (error) {
@@ -51,16 +61,12 @@ const TournamentScreen: React.FC = () => {
           <Text style={styles.rewardTitle}>Wallet Balance</Text>
           <Text style={styles.rewardAmount}>{credits} credits</Text>
           <Button
-            title={isLoaded ? 'Watch to earn entry credits' : 'Loading reward ad...'}
-            onPress={() => {
-              if (isLoaded) {
-                show();
-              } else {
-                load();
-              }
-            }}
-            disabled={!isLoaded}
+            title={isLoaded ? 'Watch to earn entry credits' : 'Load rewarded ad'}
+            onPress={handleWatchToEarn}
           />
+          {!isLoaded && (
+            <Text style={styles.helperText}>Tap the button again if the ad is still loading.</Text>
+          )}
         </View>
       </View>
     </SafeAreaView>
@@ -91,6 +97,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 24,
     marginBottom: 16,
+  },
+  helperText: {
+    marginTop: 12,
+    textAlign: 'center',
+    color: '#6b7280',
   },
   rewardTitle: {
     fontSize: 18,
