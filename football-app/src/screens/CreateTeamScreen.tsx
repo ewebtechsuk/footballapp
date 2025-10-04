@@ -30,7 +30,7 @@ const CreateTeamScreen: React.FC = () => {
 
     setName('');
     setCoach('');
-    navigation.navigate('Teams');
+    navigation.navigate('Team');
   }, [coach, dispatch, name, navigation]);
 
   return (

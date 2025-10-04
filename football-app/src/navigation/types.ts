@@ -1,7 +1,11 @@
 export type RootStackParamList = {
   Home: undefined;
-  Teams: undefined;
-  CreateTeam: undefined;
+  Team: undefined;
+  'Create Team': undefined;
   Tournaments: undefined;
   Profile: undefined;
+  TeamScreen: undefined;
+  CreateTeamScreen: undefined;
+  TournamentScreen: undefined;
+  ProfileScreen: undefined;
 };

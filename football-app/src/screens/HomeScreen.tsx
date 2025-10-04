@@ -19,8 +19,8 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
         <Text style={styles.subtitle}>Unlock premium for deeper analytics and insights.</Text>
       )}
       <View style={styles.actions}>
-        <Button title="Manage Teams" onPress={() => navigation.navigate('Teams')} />
-        <Button title="Create a Team" onPress={() => navigation.navigate('CreateTeam')} />
+        <Button title="Manage Teams" onPress={() => navigation.navigate('Team')} />
+        <Button title="Create a Team" onPress={() => navigation.navigate('Create Team')} />
         <Button title="Join Tournaments" onPress={() => navigation.navigate('Tournaments')} />
         <Button title="Profile" onPress={() => navigation.navigate('Profile')} />
       </View>
