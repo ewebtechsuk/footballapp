@@ -1,6 +1,7 @@
 # Football App
 
-Welcome to the Football App! This application allows users from around the world to create and manage their own football teams, compete in tournaments, and win prizes. 
+Welcome to the Football App! This application allows users from around the world to create and manage their own football teams,
+compete in tournaments, and win prizes.
 
 ## Features
 
@@ -23,6 +24,10 @@ To get started with the Football App, follow these steps:
    ```bash
    npm install
    ```
+   This project reuses the Expo workspace that lives in `football-app-expo/`. During installation a postinstall script links the
+   pre-populated `football-app-expo/node_modules` directory so the React Native bundle can resolve packages without reaching the
+   public npm registry. If you ever need to refresh the dependencies, run `npm install` inside `football-app-expo/` (which already
+   vendors the required packages in this repository).
 
 3. **Run the Application**:
    ```bash
@@ -59,7 +64,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 1. Create a Firebase project at https://console.firebase.google.com and enable Email/Password sign-in and Firestore.
 
-2. Add a web app in Firebase and copy the config values. Set them as environment variables for local development (or replace the placeholders in `src/services/firebase.ts`):
+2. Add a web app in Firebase and copy the config values. Set them as environment variables for local development (or replace the
+ placeholders in `src/services/firebase.ts`):
 
 ```
 FIREBASE_API_KEY=...
@@ -70,15 +76,17 @@ FIREBASE_MESSAGING_SENDER_ID=...
 FIREBASE_APP_ID=...
 ```
 
-3. Install dependencies (from project root):
+3. The repository already includes the Expo workspace under `football-app-expo/` with its dependencies checked in. If you prefer to
+   manage them yourself, you can reinstall inside that directory:
 
-```bash
-npm install firebase @react-navigation/native @react-navigation/native-stack react-native-screens react-native-safe-area-context
+```
+cd football-app-expo
+npm install
 ```
 
 4. Run the app with Expo (recommended):
 
-```bash
+```
 npx expo start
 ```
 
