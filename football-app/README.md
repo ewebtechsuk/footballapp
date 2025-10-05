@@ -20,24 +20,109 @@ To get started with the Football App, follow these steps:
    cd football-app
    ```
 
-2. **Install Dependencies**:
+2. **Configure environment variables**:
+   ```bash
+   cp .env.example .env.local
+   ```
+   Fill in the values with your Firebase project settings (or export them through your shell). The `.env.local` file is ignored
+   by Git so your credentials stay private, and the same keys can be reused for CI secrets.
+
+3. **Install Dependencies**:
    ```bash
    npm install
    ```
-   This project reuses the Expo workspace that lives in `football-app-expo/`. During installation a postinstall script links the
-   pre-populated `football-app-expo/node_modules` directory so the React Native bundle can resolve packages without reaching the
-   public npm registry. If access to the public registry is blocked (for example, in a restricted CI environment), you can still
-   prepare the dependencies without a network connection by running:
+   This project reuses the Expo workspace that lives in `football-app-expo/`. The tooling now ensures the symbolic link to the
+   vendored `football-app-expo/node_modules` directory is recreated automatically before installs, tests, builds, or Metro
+   sessions run, so you can run the usual npm scripts without worrying about registry access. If you want to refresh the link
+   manually—for example after cleaning the workspace—use the helper script:
    ```bash
-   npm run prepare:deps
+   npm run link:modules
    ```
-   When you need to refresh the dependencies, run `npm install` inside `football-app-expo/` (which already vendors the required
-   packages in this repository).
+   When you need to refresh the dependencies themselves, run `npm install` inside `football-app-expo/` (which already vendors the
+   required packages in this repository).
 
-3. **Run the Application**:
+4. **Run the Application**:
    ```bash
    npm start
    ```
+
+5. **Create a Shareable Web Preview Build**:
+   ```bash
+   npm run deploy:web
+   ```
+   This command uses the vendored Expo CLI to export the project to static assets in `dist/web`, making it easy to hand off the
+   build for hosting or to test it in a regular browser without Metro.
+
+6. **Serve the Exported Preview Locally** (after running the export step):
+   ```bash
+   npm run preview:web
+   ```
+   The script starts a lightweight static server (defaulting to http://localhost:4173) that serves the exported bundle so you can
+   click through the experience exactly as end users would.
+
+7. **Deploy the Web Build to Firebase Hosting**:
+   ```bash
+   npm run deploy:firebase
+   ```
+   This script automatically exports the latest web build and hands it off to the Firebase CLI when it is available. If
+   [`firebase-tools`](https://firebase.google.com/docs/cli) cannot be found, the script creates a simulated deployment in
+   `.firebase/hosting-sim` so you can verify the exported assets without a real Hosting push. Install the CLI locally (or add
+   it as a dev dependency) and authenticate with `firebase login` or a `FIREBASE_DEPLOY_TOKEN` when you are ready to publish.
+
+### Continuous deployment via GitHub Actions
+
+- A `Deploy to Firebase Hosting` workflow lives at `.github/workflows/deploy-firebase.yml`.
+- It runs on pushes to `main` and can also be invoked manually through the **Run workflow** button.
+- Populate these repository secrets so the workflow can authenticate with your Firebase project (if the deploy token is absent in CI the script will skip the live publish and fall back to the simulated `.firebase/hosting-sim` output):
+  - `FIREBASE_DEPLOY_TOKEN` (from `firebase login:ci` or `npm run firebase:token`)
+  - `FIREBASE_API_KEY`
+  - `FIREBASE_AUTH_DOMAIN`
+  - `FIREBASE_PROJECT_ID`
+  - `FIREBASE_STORAGE_BUCKET`
+  - `FIREBASE_MESSAGING_SENDER_ID`
+  - `FIREBASE_APP_ID`
+  - `FIREBASE_MEASUREMENT_ID` (optional, required only if Analytics is enabled)
+- The workflow installs dependencies, runs the existing tests, exports the Expo web build, and deploys it to Firebase Hosting using the same helper scripts that are available locally.
+
+### Generating a Firebase deploy token
+
+Run the bundled helper to launch the Firebase CLI login flow and automatically capture the generated token:
+
+```bash
+npm run firebase:token
+```
+
+The script looks for a local or global `firebase-tools` binary and, when found, runs `firebase login:ci` so you can authenticate in the browser. When the CLI finishes, the helper scrapes the deploy token from the output, echoes a shortened preview, and (when instructed) writes the full value to an env file for you.
+
+Add `--save` to persist the captured token directly into `.env.local` (use `--env=<path>` to pick a custom env file):
+
+```bash
+npm run firebase:token -- --save
+```
+
+Once the token is saved locally you can re-run the command to regenerate or replace it at any time; remember to replicate the value in your GitHub repository secrets so the CI workflow can deploy.
+
+### Adding the deploy token to GitHub secrets
+
+To let the `Deploy to Firebase Hosting` workflow authenticate with your Firebase project:
+
+1. Install the Firebase CLI locally if you have not already done so:
+   ```bash
+   npm install -g firebase-tools
+   ```
+2. Run the helper (or `firebase login:ci` directly) from the `football-app/` directory and complete the browser login flow:
+   ```bash
+   npm run firebase:token
+   ```
+   When the CLI finishes it prints a long token string—this is your CI deploy token.
+3. Copy that exact token value and, in your GitHub repository, navigate to **Settings → Secrets and variables → Actions → New repository secret**.
+4. Create a secret named `FIREBASE_DEPLOY_TOKEN` and paste the copied token as the value. The workflow will inject it automatically through the environment when deploying.
+
+You can repeat these steps whenever you need to rotate credentials; update both the local env file (if you saved the token) and the GitHub secret with the newly generated value.
+
+If the helper cannot detect the token automatically (for example, if the CLI output format changes), rerun the command with `--save` to paste it manually when prompted.
+
+If the CLI is not installed, the helper prints installation instructions; install it globally with `npm install -g firebase-tools` (or add it to your dev dependencies) and retry.
 
 ## Project Structure
 

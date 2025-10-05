@@ -18,7 +18,10 @@
       "@services/*": ["services/*"],
       "@store/*": ["store/*"],
       "@utils/*": ["utils/*"],
-      "@models/*": ["models/*"]
+      "@models/*": ["models/*"],
+      "react-native-google-mobile-ads": ["shims/react-native-google-mobile-ads"],
+      "@react-native-async-storage/async-storage": ["shims/async-storage"],
+      "react-native-iap": ["shims/react-native-iap"]
     }
   },
   "include": ["src/**/*"],
