@@ -5,12 +5,16 @@
   "main": "src/App.tsx",
   "private": true,
   "scripts": {
+    "link:modules": "node scripts/link-node-modules.js",
+    "prestart": "npm run link:modules",
     "start": "react-native start",
+    "prebuild": "npm run link:modules",
     "build": "react-native build",
+    "pretest": "npm run link:modules",
     "test": "node scripts/run-tests.js",
     "eject": "react-native eject",
-    "prepare:deps": "node scripts/link-node-modules.js",
-    "postinstall": "node scripts/link-node-modules.js"
+    "prepare:deps": "npm run link:modules",
+    "postinstall": "npm run link:modules"
   },
   "dependencies": {},
   "devDependencies": {},
