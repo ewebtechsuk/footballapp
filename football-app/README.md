@@ -24,20 +24,58 @@ To get started with the Football App, follow these steps:
    ```bash
    npm install
    ```
-   This project reuses the Expo workspace that lives in `football-app-expo/`. During installation a postinstall script links the
-   pre-populated `football-app-expo/node_modules` directory so the React Native bundle can resolve packages without reaching the
-   public npm registry. If access to the public registry is blocked (for example, in a restricted CI environment), you can still
-   prepare the dependencies without a network connection by running:
+   This project reuses the Expo workspace that lives in `football-app-expo/`. The tooling now ensures the symbolic link to the
+   vendored `football-app-expo/node_modules` directory is recreated automatically before installs, tests, builds, or Metro
+   sessions run, so you can run the usual npm scripts without worrying about registry access. If you want to refresh the link
+   manually—for example after cleaning the workspace—use the helper script:
    ```bash
-   npm run prepare:deps
+   npm run link:modules
    ```
-   When you need to refresh the dependencies, run `npm install` inside `football-app-expo/` (which already vendors the required
-   packages in this repository).
+   When you need to refresh the dependencies themselves, run `npm install` inside `football-app-expo/` (which already vendors the
+   required packages in this repository).
 
 3. **Run the Application**:
    ```bash
    npm start
    ```
+
+4. **Create a Shareable Web Preview Build**:
+   ```bash
+   npm run deploy:web
+   ```
+   This command uses the vendored Expo CLI to export the project to static assets in `dist/web`, making it easy to hand off the
+   build for hosting or to test it in a regular browser without Metro.
+
+5. **Serve the Exported Preview Locally** (after running the export step):
+   ```bash
+   npm run preview:web
+   ```
+   The script starts a lightweight static server (defaulting to http://localhost:4173) that serves the exported bundle so you can
+   click through the experience exactly as end users would.
+
+6. **Deploy the Web Build to Firebase Hosting**:
+   ```bash
+   npm run deploy:firebase
+   ```
+   This script automatically exports the latest web build and hands it off to the Firebase CLI when it is available. If
+   [`firebase-tools`](https://firebase.google.com/docs/cli) cannot be found, the script creates a simulated deployment in
+   `.firebase/hosting-sim` so you can verify the exported assets without a real Hosting push. Install the CLI locally (or add
+   it as a dev dependency) and authenticate with `firebase login` or a `FIREBASE_DEPLOY_TOKEN` when you are ready to publish.
+
+### Continuous deployment via GitHub Actions
+
+- A `Deploy to Firebase Hosting` workflow lives at `.github/workflows/deploy-firebase.yml`.
+- It runs on pushes to `main` and can also be invoked manually through the **Run workflow** button.
+- Populate these repository secrets so the workflow can authenticate with your Firebase project:
+  - `FIREBASE_DEPLOY_TOKEN` (from `firebase login:ci` or `firebase login:token`)
+  - `FIREBASE_API_KEY`
+  - `FIREBASE_AUTH_DOMAIN`
+  - `FIREBASE_PROJECT_ID`
+  - `FIREBASE_STORAGE_BUCKET`
+  - `FIREBASE_MESSAGING_SENDER_ID`
+  - `FIREBASE_APP_ID`
+  - `FIREBASE_MEASUREMENT_ID` (optional, required only if Analytics is enabled)
+- The workflow installs dependencies, runs the existing tests, exports the Expo web build, and deploys it to Firebase Hosting using the same helper scripts that are available locally.
 
 ## Project Structure
 
