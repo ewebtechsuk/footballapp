@@ -3,6 +3,10 @@ const http = require('http');
 const path = require('path');
 const url = require('url');
 
+const loadEnv = require('./load-env');
+
+loadEnv();
+
 const projectRoot = path.resolve(__dirname, '..');
 const buildRoot = path.join(projectRoot, 'dist', 'web');
 const port = Number(process.env.PORT || 4173);
