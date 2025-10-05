@@ -94,6 +94,7 @@ To get started with the Football App, follow these steps:
   - `FIREBASE_APP_ID`
   - `FIREBASE_MEASUREMENT_ID` (optional, required only if Analytics is enabled)
 - The workflow installs dependencies, runs the existing tests, exports the Expo web build, and deploys it to Firebase Hosting using the same helper scripts that are available locally.
+- If the deploy step fails with `Failed to authenticate, have you run firebase login?`, regenerate the CI token locally with `firebase login:ci` (or `firebase login:token`), update the `FIREBASE_DEPLOY_TOKEN` secret under **Settings → Secrets and variables → Actions**, and re-run the workflow. This ensures GitHub Actions can authenticate against your Firebase project.
 
 ### Generating a Firebase deploy token
 
