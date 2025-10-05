@@ -20,7 +20,22 @@ To get started with the Football App, follow these steps:
    cd football-app
    ```
 
-2. **Install Dependencies**:
+2. **Configure environment variables**:
+   ```bash
+   cp .env.example .env.local
+   ```
+   Fill in the values with your Firebase project settings (or export them through your shell). The `.env.local` file is ignored
+   by Git so your credentials stay private, and the same keys can be reused for CI secrets. If you have production Google Mobile
+   Ads identifiers, add them here so the runtime and build scripts pick them up automatically:
+
+   ```
+   GOOGLE_MOBILE_ADS_APP_ID=...
+   HOME_BANNER_AD_UNIT_ID=...
+   TEAM_BANNER_AD_UNIT_ID=...
+   TOURNAMENT_REWARDED_AD_UNIT_ID=...
+   ```
+
+3. **Install Dependencies**:
    ```bash
    npm install
    ```
@@ -34,26 +49,27 @@ To get started with the Football App, follow these steps:
    When you need to refresh the dependencies themselves, run `npm install` inside `football-app-expo/` (which already vendors the
    required packages in this repository).
 
-3. **Run the Application**:
+4. **Run the Application**:
    ```bash
    npm start
    ```
 
-4. **Create a Shareable Web Preview Build**:
+5. **Create a Shareable Web Preview Build**:
    ```bash
    npm run deploy:web
    ```
    This command uses the vendored Expo CLI to export the project to static assets in `dist/web`, making it easy to hand off the
-   build for hosting or to test it in a regular browser without Metro.
+   build for hosting or to test it in a regular browser without Metro. Environment variables from `.env`/`.env.local` are loaded
+   automatically before the export so your Firebase credentials (and optional ad identifiers) are embedded when present.
 
-5. **Serve the Exported Preview Locally** (after running the export step):
+6. **Serve the Exported Preview Locally** (after running the export step):
    ```bash
    npm run preview:web
    ```
    The script starts a lightweight static server (defaulting to http://localhost:4173) that serves the exported bundle so you can
    click through the experience exactly as end users would.
 
-6. **Deploy the Web Build to Firebase Hosting**:
+7. **Deploy the Web Build to Firebase Hosting**:
    ```bash
    npm run deploy:firebase
    ```
@@ -61,13 +77,15 @@ To get started with the Football App, follow these steps:
    [`firebase-tools`](https://firebase.google.com/docs/cli) cannot be found, the script creates a simulated deployment in
    `.firebase/hosting-sim` so you can verify the exported assets without a real Hosting push. Install the CLI locally (or add
    it as a dev dependency) and authenticate with `firebase login` or a `FIREBASE_DEPLOY_TOKEN` when you are ready to publish.
+   The deploy helper loads `.env`/`.env.local` first, so any Firebase credentials or deploy tokens stored there are available
+   automatically.
 
 ### Continuous deployment via GitHub Actions
 
 - A `Deploy to Firebase Hosting` workflow lives at `.github/workflows/deploy-firebase.yml`.
 - It runs on pushes to `main` and can also be invoked manually through the **Run workflow** button.
 - Populate these repository secrets so the workflow can authenticate with your Firebase project (if the deploy token is absent in CI the script will skip the live publish and fall back to the simulated `.firebase/hosting-sim` output):
-  - `FIREBASE_DEPLOY_TOKEN` (from `firebase login:ci` or `firebase login:token`)
+  - `FIREBASE_DEPLOY_TOKEN` (from `firebase login:ci` or `npm run firebase:token`)
   - `FIREBASE_API_KEY`
   - `FIREBASE_AUTH_DOMAIN`
   - `FIREBASE_PROJECT_ID`
