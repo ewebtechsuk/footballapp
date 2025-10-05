@@ -20,6 +20,7 @@
     "predeploy:firebase": "npm run deploy:web",
     "deploy:firebase": "node scripts/deploy-firebase.js",
     "firebase:token": "node scripts/request-firebase-token.js",
+    "firebase:token:no-localhost": "node scripts/request-firebase-token.js --no-localhost",
     "prepare:deps": "npm run link:modules",
     "postinstall": "npm run link:modules"
   },

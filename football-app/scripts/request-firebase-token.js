@@ -14,6 +14,9 @@ const envPathArgument = args.find((arg) => arg.startsWith('--env='));
 const envFilePath = envPathArgument
   ? path.resolve(workspaceRoot, envPathArgument.split('=')[1])
   : defaultEnvFile;
+const shouldForceNoLocalhost = args.includes('--no-localhost');
+const isCi = /^(1|true)$/i.test(process.env.CI || '');
+const shouldUseNoLocalhost = shouldForceNoLocalhost || isCi;
 const isWindows = process.platform === 'win32';
 const localBinary = path.join(
   workspaceRoot,
@@ -69,6 +72,7 @@ function printSetupHelp() {
   console.error('\nOptional helpers:');
   console.error('  npm run firebase:token -- --save       # prompt to store the token in .env.local');
   console.error('  npm run firebase:token -- --env=.env   # pick a custom env file when saving');
+  console.error('  npm run firebase:token:no-localhost    # use the out-of-band login flow when a browser is unavailable');
 }
 
 function ensureTrailingNewline(value) {
@@ -191,14 +195,23 @@ async function handleTokenPersistence(token) {
 
 function runLogin(command) {
   console.log(`Using ${command.label}.`);
-  console.log('Running `firebase login:ci` — follow the prompts in your browser to authenticate.');
+  if (shouldUseNoLocalhost) {
+    console.log('Running `firebase login:ci --no-localhost` — copy the verification URL into a browser, then paste the code back.');
+  } else {
+    console.log('Running `firebase login:ci` — follow the prompts in your browser to authenticate.');
+  }
   console.log('Once complete, the generated token will be captured automatically.');
   console.log('Press Ctrl+C to cancel.\n');
 
   let capturedStdout = '';
   let capturedStderr = '';
 
-  const child = spawn(command.command, ['login:ci'], {
+  const cliArgs = ['login:ci'];
+  if (shouldUseNoLocalhost) {
+    cliArgs.push('--no-localhost');
+  }
+
+  const child = spawn(command.command, cliArgs, {
     stdio: ['inherit', 'pipe', 'pipe'],
     env: process.env,
     cwd: workspaceRoot
