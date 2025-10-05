@@ -24,6 +24,10 @@ jobs:
           cache: npm
           cache-dependency-path: football-app/package-lock.json
 
+      - name: Install Expo workspace dependencies
+        working-directory: football-app/football-app-expo
+        run: npm install
+
       - name: Install dependencies
         working-directory: football-app
         run: npm install
