@@ -40,6 +40,10 @@ jobs:
         working-directory: football-app
         run: npm install --no-save firebase-tools
 
+      - name: Verify Firebase CLI availability
+        working-directory: football-app
+        run: npx firebase --version
+
       - name: Deploy to Firebase Hosting
         working-directory: football-app
         env:
