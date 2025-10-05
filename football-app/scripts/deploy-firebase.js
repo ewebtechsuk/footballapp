@@ -29,18 +29,10 @@ const candidateBinaries = [
 ];
 
 let firebaseBinary = null;
-let resolvedViaPath = false;
 
 for (const candidate of candidateBinaries) {
-  if (candidate.includes(path.sep)) {
-    if (fs.existsSync(candidate)) {
-      firebaseBinary = candidate;
-      break;
-    }
-  } else {
-    // Last resort: allow resolving via the shell PATH.
+  if (!candidate.includes(path.sep) || fs.existsSync(candidate)) {
     firebaseBinary = candidate;
-    resolvedViaPath = true;
     break;
   }
 }
@@ -88,11 +80,22 @@ if (process.env.FIREBASE_DEPLOY_TOKEN) {
   deployEnv.FIREBASE_DEPLOY_TOKEN = process.env.FIREBASE_DEPLOY_TOKEN;
 }
 
-const deployResult = spawnSync(firebaseBinary, ['deploy', '--only', 'hosting'], {
+const deployArgs = ['deploy', '--only', 'hosting'];
+const firebaseDeployToken =
+  process.env.FIREBASE_DEPLOY_TOKEN || process.env.FIREBASE_TOKEN || '';
+
+if (firebaseDeployToken) {
+  // Pass the token explicitly so the CLI never prompts for interactive auth.
+  deployArgs.push('--token', firebaseDeployToken);
+  // Normalise the environment variable name for firebase-tools (which still
+  // reads FIREBASE_TOKEN in some code paths) to avoid future regressions.
+  deployEnv.FIREBASE_TOKEN = firebaseDeployToken;
+}
+
+const deployResult = spawnSync(firebaseBinary, deployArgs, {
   cwd: projectRoot,
   stdio: 'inherit',
   env: deployEnv,
-  shell: resolvedViaPath,
 });
 
 if (deployResult.error) {
@@ -102,10 +105,6 @@ if (deployResult.error) {
 
   console.error(`Failed to run Firebase CLI: ${deployResult.error.message}`);
   process.exit(1);
-}
-
-if (deployResult.status === 127 && resolvedViaPath) {
-  simulateDeploy();
 }
 
 if (deployResult.status !== 0) {
