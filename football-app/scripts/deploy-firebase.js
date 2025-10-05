@@ -4,6 +4,10 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
+const loadEnv = require('./load-env');
+
+loadEnv();
+
 const projectRoot = path.resolve(__dirname, '..');
 const expoProjectRoot = path.join(projectRoot, 'football-app-expo');
 const distDir = path.join(projectRoot, 'dist', 'web');

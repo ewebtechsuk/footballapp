@@ -25,7 +25,15 @@ To get started with the Football App, follow these steps:
    cp .env.example .env.local
    ```
    Fill in the values with your Firebase project settings (or export them through your shell). The `.env.local` file is ignored
-   by Git so your credentials stay private, and the same keys can be reused for CI secrets.
+   by Git so your credentials stay private, and the same keys can be reused for CI secrets. If you have production Google Mobile
+   Ads identifiers, add them here so the runtime and build scripts pick them up automatically:
+
+   ```
+   GOOGLE_MOBILE_ADS_APP_ID=...
+   HOME_BANNER_AD_UNIT_ID=...
+   TEAM_BANNER_AD_UNIT_ID=...
+   TOURNAMENT_REWARDED_AD_UNIT_ID=...
+   ```
 
 3. **Install Dependencies**:
    ```bash
@@ -51,7 +59,8 @@ To get started with the Football App, follow these steps:
    npm run deploy:web
    ```
    This command uses the vendored Expo CLI to export the project to static assets in `dist/web`, making it easy to hand off the
-   build for hosting or to test it in a regular browser without Metro.
+   build for hosting or to test it in a regular browser without Metro. Environment variables from `.env`/`.env.local` are loaded
+   automatically before the export so your Firebase credentials (and optional ad identifiers) are embedded when present.
 
 6. **Serve the Exported Preview Locally** (after running the export step):
    ```bash
@@ -68,6 +77,8 @@ To get started with the Football App, follow these steps:
    [`firebase-tools`](https://firebase.google.com/docs/cli) cannot be found, the script creates a simulated deployment in
    `.firebase/hosting-sim` so you can verify the exported assets without a real Hosting push. Install the CLI locally (or add
    it as a dev dependency) and authenticate with `firebase login` or a `FIREBASE_DEPLOY_TOKEN` when you are ready to publish.
+   The deploy helper loads `.env`/`.env.local` first, so any Firebase credentials or deploy tokens stored there are available
+   automatically.
 
 ### Continuous deployment via GitHub Actions
 
