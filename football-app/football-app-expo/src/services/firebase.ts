@@ -1,6 +1,7 @@
 // Firebase initialization (modular SDK)
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
+import { getAnalytics, isSupported as isAnalyticsSupported } from 'firebase/analytics';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import Constants from 'expo-constants';
@@ -22,31 +23,26 @@ if (process.env.NODE_ENV !== 'production') {
 const extras = (Constants && (Constants.expoConfig?.extra || Constants.manifest?.extra)) || {};
 
 const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY || extras.FIREBASE_API_KEY || '<YOUR_API_KEY>',
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN || extras.FIREBASE_AUTH_DOMAIN || '<YOUR_AUTH_DOMAIN>',
-  projectId: process.env.FIREBASE_PROJECT_ID || extras.FIREBASE_PROJECT_ID || '<YOUR_PROJECT_ID>',
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || extras.FIREBASE_STORAGE_BUCKET || '<YOUR_STORAGE_BUCKET>',
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || extras.FIREBASE_MESSAGING_SENDER_ID || '<YOUR_MESSAGING_SENDER_ID>',
-  appId: process.env.FIREBASE_APP_ID || extras.FIREBASE_APP_ID || '<YOUR_APP_ID>'
+  apiKey: process.env.FIREBASE_API_KEY || extras.FIREBASE_API_KEY || 'AIzaSyDNYE3TgTsKJ68EzJfe1nASv8iS17UJ_kY',
+  authDomain:
+    process.env.FIREBASE_AUTH_DOMAIN || extras.FIREBASE_AUTH_DOMAIN || 'footballapp-90e32.firebaseapp.com',
+  projectId: process.env.FIREBASE_PROJECT_ID || extras.FIREBASE_PROJECT_ID || 'footballapp-90e32',
+  storageBucket:
+    process.env.FIREBASE_STORAGE_BUCKET || extras.FIREBASE_STORAGE_BUCKET || 'footballapp-90e32.firebasestorage.app',
+  messagingSenderId:
+    process.env.FIREBASE_MESSAGING_SENDER_ID || extras.FIREBASE_MESSAGING_SENDER_ID || '607732579377',
+  appId: process.env.FIREBASE_APP_ID || extras.FIREBASE_APP_ID || '1:607732579377:web:b2bc03baeda0b0627ea910',
+  measurementId:
+    process.env.FIREBASE_MEASUREMENT_ID ||
+    extras.FIREBASE_MEASUREMENT_ID ||
+    'G-G5073H160W'
 };
 
-// Fail fast when the config still contains placeholders to avoid malformed
-// network requests to Firestore (which show up as repeated 400 errors).
-const placeholderKeys = Object.entries(firebaseConfig).filter(([, v]) =>
-  typeof v === 'string' && v.startsWith('<') && v.endsWith('>')
-);
-if (placeholderKeys.length > 0) {
-  // Log a helpful message that lists which keys are missing; throw to stop
-  // the app from continuing to hit the Firestore WebChannel with bad params.
-  const keys = placeholderKeys.map(([k]) => k).join(', ');
-  // eslint-disable-next-line no-console
-  console.error(
-    `Firebase config appears to be missing real values for: ${keys}.\n` +
-      'Set the values in environment variables or replace the placeholders in src/services/firebase.ts'
-  );
-  throw new Error(
-    `Missing Firebase configuration: ${keys}. See src/services/firebase.ts to set them.`
-  );
+// Fail fast if any config values are still missing after applying fallbacks.
+const missingKeys = Object.entries(firebaseConfig).filter(([, v]) => !v);
+if (missingKeys.length > 0) {
+  const keys = missingKeys.map(([k]) => k).join(', ');
+  throw new Error(`Missing Firebase configuration: ${keys}. Check src/services/firebase.ts.`);
 }
 
 const app = initializeApp(firebaseConfig);
@@ -54,5 +50,12 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+
+// Firebase Analytics is only available on supported platforms (e.g., web).
+// Expose a promise so callers can await analytics when supported without
+// causing runtime errors on native builds.
+export const analytics = isAnalyticsSupported()
+  .then((supported) => (supported ? getAnalytics(app) : undefined))
+  .catch(() => undefined);
 
 export default app;
