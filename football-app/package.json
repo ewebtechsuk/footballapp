@@ -13,6 +13,12 @@
     "pretest": "npm run link:modules",
     "test": "node scripts/run-tests.js",
     "eject": "react-native eject",
+    "predeploy:web": "npm run link:modules",
+    "deploy:web": "node scripts/export-web.js",
+    "prepreview:web": "npm run link:modules",
+    "preview:web": "node scripts/serve-web-preview.js",
+    "predeploy:firebase": "npm run deploy:web",
+    "deploy:firebase": "node scripts/deploy-firebase.js",
     "prepare:deps": "npm run link:modules",
     "postinstall": "npm run link:modules"
   },
