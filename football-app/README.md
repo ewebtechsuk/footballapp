@@ -60,22 +60,16 @@ To get started with the Football App, follow these steps:
    This script automatically exports the latest web build and hands it off to the Firebase CLI when it is available. If
    [`firebase-tools`](https://firebase.google.com/docs/cli) cannot be found, the script creates a simulated deployment in
    `.firebase/hosting-sim` so you can verify the exported assets without a real Hosting push. Install the CLI locally (or add
-   it as a dev dependency) and authenticate with `firebase login` or a `FIREBASE_DEPLOY_TOKEN` when you are ready to publish.
+   it as a dev dependency) and authenticate with `firebase login` or point the `GOOGLE_APPLICATION_CREDENTIALS` environment
+   variable at a Firebase service account key JSON when you are ready to publish.
 
 ### Continuous deployment via GitHub Actions
 
 - A `Deploy to Firebase Hosting` workflow lives at `.github/workflows/deploy-firebase.yml`.
 - It runs on pushes to `main` and can also be invoked manually through the **Run workflow** button.
-- Populate these repository secrets so the workflow can authenticate with your Firebase project (if the deploy token is absent in CI the script will skip the live publish and fall back to the simulated `.firebase/hosting-sim` output):
-  - `FIREBASE_DEPLOY_TOKEN` (from `firebase login:ci` or `firebase login:token`)
-  - `FIREBASE_API_KEY`
-  - `FIREBASE_AUTH_DOMAIN`
-  - `FIREBASE_PROJECT_ID`
-  - `FIREBASE_STORAGE_BUCKET`
-  - `FIREBASE_MESSAGING_SENDER_ID`
-  - `FIREBASE_APP_ID`
-  - `FIREBASE_MEASUREMENT_ID` (optional, required only if Analytics is enabled)
+- Populate the `FIREBASE_SERVICE_ACCOUNT_KEY` repository secret with a Firebase service account JSON key that has Hosting permissions. The workflow materialises this secret to a temporary file and exports it via `GOOGLE_APPLICATION_CREDENTIALS` so the Firebase CLI can authenticate non-interactively.
 - The workflow installs dependencies, runs the existing tests, exports the Expo web build, and deploys it to Firebase Hosting using the same helper scripts that are available locally.
+- If the deploy step fails with authentication errors, re-generate the service account key from **Project Settings → Service Accounts → Generate new private key**, update the `FIREBASE_SERVICE_ACCOUNT_KEY` secret, and re-run the workflow.
 
 ## Project Structure
 

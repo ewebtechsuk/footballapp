@@ -29,18 +29,10 @@ const candidateBinaries = [
 ];
 
 let firebaseBinary = null;
-let resolvedViaPath = false;
 
 for (const candidate of candidateBinaries) {
-  if (candidate.includes(path.sep)) {
-    if (fs.existsSync(candidate)) {
-      firebaseBinary = candidate;
-      break;
-    }
-  } else {
-    // Last resort: allow resolving via the shell PATH.
+  if (!candidate.includes(path.sep) || fs.existsSync(candidate)) {
     firebaseBinary = candidate;
-    resolvedViaPath = true;
     break;
   }
 }
@@ -73,26 +65,50 @@ if (!firebaseBinary) {
 
 console.log('Deploying dist/web to Firebase Hosting…');
 
-if (!process.env.FIREBASE_DEPLOY_TOKEN && isCI) {
-  console.warn(
-    'FIREBASE_DEPLOY_TOKEN was not provided. Skipping the live Firebase Hosting deploy and generating the simulated output instead. Set the FIREBASE_DEPLOY_TOKEN repository secret (firebase login:ci) to enable real deployments from CI.'
-  );
-  simulateDeploy();
-}
-
 const deployEnv = {
   ...process.env,
 };
 
-if (process.env.FIREBASE_DEPLOY_TOKEN) {
-  deployEnv.FIREBASE_DEPLOY_TOKEN = process.env.FIREBASE_DEPLOY_TOKEN;
+let credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS || '';
+
+if (credentialsPath.trim().startsWith('{')) {
+  const firebaseArtifactsDir = path.join(projectRoot, '.firebase');
+  const inferredCredentialsPath = path.join(firebaseArtifactsDir, 'service-account.json');
+
+  try {
+    fs.mkdirSync(firebaseArtifactsDir, { recursive: true });
+    fs.writeFileSync(inferredCredentialsPath, credentialsPath);
+  } catch (error) {
+    console.error('Failed to write Firebase service account credentials to disk:', error);
+    process.exit(1);
+  }
+
+  credentialsPath = inferredCredentialsPath;
 }
 
-const deployResult = spawnSync(firebaseBinary, ['deploy', '--only', 'hosting'], {
+if (!credentialsPath && isCI) {
+  console.error(
+    'GOOGLE_APPLICATION_CREDENTIALS is not set. Provide a Firebase service account key (store the JSON in the FIREBASE_SERVICE_ACCOUNT_KEY secret) so CI can authenticate before deploying.'
+  );
+  process.exit(1);
+}
+
+if (credentialsPath && !fs.existsSync(credentialsPath)) {
+  console.error(`Firebase service account credentials not found at ${credentialsPath}.`);
+  console.error('Verify that the FIREBASE_SERVICE_ACCOUNT_KEY secret is configured correctly.');
+  process.exit(1);
+}
+
+if (credentialsPath) {
+  deployEnv.GOOGLE_APPLICATION_CREDENTIALS = credentialsPath;
+}
+
+const deployArgs = ['deploy', '--only', 'hosting'];
+
+const deployResult = spawnSync(firebaseBinary, deployArgs, {
   cwd: projectRoot,
   stdio: 'inherit',
   env: deployEnv,
-  shell: resolvedViaPath,
 });
 
 if (deployResult.error) {
@@ -104,14 +120,10 @@ if (deployResult.error) {
   process.exit(1);
 }
 
-if (deployResult.status === 127 && resolvedViaPath) {
-  simulateDeploy();
-}
-
 if (deployResult.status !== 0) {
   console.error('\nFirebase deployment failed. Review the logs above for details.');
-  if (process.env.FIREBASE_DEPLOY_TOKEN) {
-    console.error('Ensure the FIREBASE_DEPLOY_TOKEN secret is valid (regenerate with "firebase login:ci" if necessary).');
+  if (credentialsPath) {
+    console.error('Confirm that the Firebase service account has Hosting permissions and that the FIREBASE_SERVICE_ACCOUNT_KEY secret is current.');
   }
   process.exit(deployResult.status ?? 1);
 }
