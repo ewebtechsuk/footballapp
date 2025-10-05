@@ -69,32 +69,45 @@ if (!firebaseBinary) {
 
 console.log('Deploying dist/web to Firebase Hosting…');
 
-if (!process.env.FIREBASE_DEPLOY_TOKEN && isCI) {
-  console.warn(
-    'FIREBASE_DEPLOY_TOKEN was not provided. Skipping the live Firebase Hosting deploy and generating the simulated output instead. Generate one with "firebase login:ci" (or "npm run firebase:token") and add the exact value as the FIREBASE_DEPLOY_TOKEN repository secret to enable real deployments from CI.'
-  );
-  simulateDeploy();
-}
-
 const deployEnv = {
   ...process.env,
 };
 
-if (process.env.FIREBASE_DEPLOY_TOKEN) {
-  deployEnv.FIREBASE_DEPLOY_TOKEN = process.env.FIREBASE_DEPLOY_TOKEN;
+let credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS || '';
+
+if (credentialsPath.trim().startsWith('{')) {
+  const firebaseArtifactsDir = path.join(projectRoot, '.firebase');
+  const inferredCredentialsPath = path.join(firebaseArtifactsDir, 'service-account.json');
+
+  try {
+    fs.mkdirSync(firebaseArtifactsDir, { recursive: true });
+    fs.writeFileSync(inferredCredentialsPath, credentialsPath);
+  } catch (error) {
+    console.error('Failed to write Firebase service account credentials to disk:', error);
+    process.exit(1);
+  }
+
+  credentialsPath = inferredCredentialsPath;
+}
+
+if (!credentialsPath && isCI) {
+  console.error(
+    'GOOGLE_APPLICATION_CREDENTIALS is not set. Provide a Firebase service account key (store the JSON in the FIREBASE_SERVICE_ACCOUNT_KEY secret) so CI can authenticate before deploying.'
+  );
+  process.exit(1);
+}
+
+if (credentialsPath && !fs.existsSync(credentialsPath)) {
+  console.error(`Firebase service account credentials not found at ${credentialsPath}.`);
+  console.error('Verify that the FIREBASE_SERVICE_ACCOUNT_KEY secret is configured correctly.');
+  process.exit(1);
+}
+
+if (credentialsPath) {
+  deployEnv.GOOGLE_APPLICATION_CREDENTIALS = credentialsPath;
 }
 
 const deployArgs = ['deploy', '--only', 'hosting'];
-const firebaseDeployToken =
-  process.env.FIREBASE_DEPLOY_TOKEN || process.env.FIREBASE_TOKEN || '';
-
-if (firebaseDeployToken) {
-  // Pass the token explicitly so the CLI never prompts for interactive auth.
-  deployArgs.push('--token', firebaseDeployToken);
-  // Normalise the environment variable name for firebase-tools (which still
-  // reads FIREBASE_TOKEN in some code paths) to avoid future regressions.
-  deployEnv.FIREBASE_TOKEN = firebaseDeployToken;
-}
 
 const deployResult = spawnSync(firebaseBinary, deployArgs, {
   cwd: projectRoot,
@@ -113,8 +126,8 @@ if (deployResult.error) {
 
 if (deployResult.status !== 0) {
   console.error('\nFirebase deployment failed. Review the logs above for details.');
-  if (process.env.FIREBASE_DEPLOY_TOKEN) {
-    console.error('Ensure the FIREBASE_DEPLOY_TOKEN secret is valid (regenerate with "firebase login:ci" if necessary).');
+  if (credentialsPath) {
+    console.error('Confirm that the Firebase service account has Hosting permissions and that the FIREBASE_SERVICE_ACCOUNT_KEY secret is current.');
   }
   process.exit(deployResult.status ?? 1);
 }
