@@ -25,7 +25,15 @@ To get started with the Football App, follow these steps:
    cp .env.example .env.local
    ```
    Fill in the values with your Firebase project settings (or export them through your shell). The `.env.local` file is ignored
-   by Git so your credentials stay private, and the same keys can be reused for CI secrets.
+   by Git so your credentials stay private, and the same keys can be reused for CI secrets. If you have production Google Mobile
+   Ads identifiers, add them here so the runtime and build scripts pick them up automatically:
+
+   ```
+   GOOGLE_MOBILE_ADS_APP_ID=...
+   HOME_BANNER_AD_UNIT_ID=...
+   TEAM_BANNER_AD_UNIT_ID=...
+   TOURNAMENT_REWARDED_AD_UNIT_ID=...
+   ```
 
 3. **Install Dependencies**:
    ```bash
@@ -51,7 +59,8 @@ To get started with the Football App, follow these steps:
    npm run deploy:web
    ```
    This command uses the vendored Expo CLI to export the project to static assets in `dist/web`, making it easy to hand off the
-   build for hosting or to test it in a regular browser without Metro.
+   build for hosting or to test it in a regular browser without Metro. Environment variables from `.env`/`.env.local` are loaded
+   automatically before the export so your Firebase credentials (and optional ad identifiers) are embedded when present.
 
 6. **Serve the Exported Preview Locally** (after running the export step):
    ```bash
@@ -68,6 +77,8 @@ To get started with the Football App, follow these steps:
    [`firebase-tools`](https://firebase.google.com/docs/cli) cannot be found, the script creates a simulated deployment in
    `.firebase/hosting-sim` so you can verify the exported assets without a real Hosting push. Install the CLI locally (or add
    it as a dev dependency) and authenticate with `firebase login` or a `FIREBASE_DEPLOY_TOKEN` when you are ready to publish.
+   The deploy helper loads `.env`/`.env.local` first, so any Firebase credentials or deploy tokens stored there are available
+   automatically.
 
 ### Continuous deployment via GitHub Actions
 
@@ -101,6 +112,24 @@ npm run firebase:token -- --save
 ```
 
 Once the token is saved locally you can re-run the command to regenerate or replace it at any time; remember to replicate the value in your GitHub repository secrets so the CI workflow can deploy.
+
+### Adding the deploy token to GitHub secrets
+
+To let the `Deploy to Firebase Hosting` workflow authenticate with your Firebase project:
+
+1. Install the Firebase CLI locally if you have not already done so:
+   ```bash
+   npm install -g firebase-tools
+   ```
+2. Run the helper (or `firebase login:ci` directly) from the `football-app/` directory and complete the browser login flow:
+   ```bash
+   npm run firebase:token
+   ```
+   When the CLI finishes it prints a long token string—this is your CI deploy token.
+3. Copy that exact token value and, in your GitHub repository, navigate to **Settings → Secrets and variables → Actions → New repository secret**.
+4. Create a secret named `FIREBASE_DEPLOY_TOKEN` and paste the copied token as the value. The workflow will inject it automatically through the environment when deploying.
+
+You can repeat these steps whenever you need to rotate credentials; update both the local env file (if you saved the token) and the GitHub secret with the newly generated value.
 
 If the helper cannot detect the token automatically (for example, if the CLI output format changes), rerun the command with `--save` to paste it manually when prompted.
 
