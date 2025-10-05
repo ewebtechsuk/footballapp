@@ -53,6 +53,14 @@ To get started with the Football App, follow these steps:
    The script starts a lightweight static server (defaulting to http://localhost:4173) that serves the exported bundle so you can
    click through the experience exactly as end users would.
 
+6. **Deploy the Web Build to Firebase Hosting** (requires the Firebase CLI):
+   ```bash
+   npm run deploy:firebase
+   ```
+   This script automatically exports the latest web build and hands it off to the Firebase CLI. Make sure you have
+   [`firebase-tools`](https://firebase.google.com/docs/cli) installed (`npm install -g firebase-tools`) and that you are logged in
+   to the correct account (`firebase login`). You can also supply a `FIREBASE_DEPLOY_TOKEN` environment variable for CI deployments.
+
 ## Project Structure
 
 The project is organized as follows:
