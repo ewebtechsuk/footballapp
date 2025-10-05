@@ -74,7 +74,7 @@ To get started with the Football App, follow these steps:
 - A `Deploy to Firebase Hosting` workflow lives at `.github/workflows/deploy-firebase.yml`.
 - It runs on pushes to `main` and can also be invoked manually through the **Run workflow** button.
 - Populate these repository secrets so the workflow can authenticate with your Firebase project (if the deploy token is absent in CI the script will skip the live publish and fall back to the simulated `.firebase/hosting-sim` output):
-  - `FIREBASE_DEPLOY_TOKEN` (from `firebase login:ci` or `firebase login:token`)
+  - `FIREBASE_DEPLOY_TOKEN` (from `firebase login:ci` or `npm run firebase:token`)
   - `FIREBASE_API_KEY`
   - `FIREBASE_AUTH_DOMAIN`
   - `FIREBASE_PROJECT_ID`
@@ -86,21 +86,23 @@ To get started with the Football App, follow these steps:
 
 ### Generating a Firebase deploy token
 
-Run the bundled helper to launch the Firebase CLI login flow:
+Run the bundled helper to launch the Firebase CLI login flow and automatically capture the generated token:
 
 ```bash
 npm run firebase:token
 ```
 
-The script looks for a local or global `firebase-tools` binary and, when found, runs `firebase login:ci` so you can authenticate in the browser. Copy the token that the CLI prints at the end of the flow and store it as `FIREBASE_DEPLOY_TOKEN` in your repository secrets (or a local `.env`).
+The script looks for a local or global `firebase-tools` binary and, when found, runs `firebase login:ci` so you can authenticate in the browser. When the CLI finishes, the helper scrapes the deploy token from the output, echoes a shortened preview, and (when instructed) writes the full value to an env file for you.
 
-Add `--save` to the command to be prompted to paste the token straight into `.env.local` (use `--env=<path>` to pick a custom env file):
+Add `--save` to persist the captured token directly into `.env.local` (use `--env=<path>` to pick a custom env file):
 
 ```bash
 npm run firebase:token -- --save
 ```
 
 Once the token is saved locally you can re-run the command to regenerate or replace it at any time; remember to replicate the value in your GitHub repository secrets so the CI workflow can deploy.
+
+If the helper cannot detect the token automatically (for example, if the CLI output format changes), rerun the command with `--save` to paste it manually when prompted.
 
 If the CLI is not installed, the helper prints installation instructions; install it globally with `npm install -g firebase-tools` (or add it to your dev dependencies) and retry.
 

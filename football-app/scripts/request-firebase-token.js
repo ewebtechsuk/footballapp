@@ -127,29 +127,107 @@ async function promptToPersistToken(filePath) {
   console.log('Commit this file only if you intend to share the token (typically it should remain untracked).');
 }
 
+function extractTokenFromOutput(output) {
+  if (!output) {
+    return null;
+  }
+
+  const lines = output
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    const line = lines[index];
+
+    const tokenMatch = line.match(/token:\s*([A-Za-z0-9_-]{20,})/i);
+    if (tokenMatch) {
+      return tokenMatch[1];
+    }
+
+    if (/^[A-Za-z0-9_-]{100,}$/.test(line)) {
+      return line;
+    }
+  }
+
+  return null;
+}
+
+function summarizeToken(token) {
+  if (!token) {
+    return '';
+  }
+
+  if (token.length <= 12) {
+    return token;
+  }
+
+  return `${token.slice(0, 6)}…${token.slice(-4)}`;
+}
+
+async function handleTokenPersistence(token) {
+  if (!token) {
+    return;
+  }
+
+  if (shouldSaveToken) {
+    try {
+      upsertEnvValue(envFilePath, 'FIREBASE_DEPLOY_TOKEN', token);
+      console.log(`Saved FIREBASE_DEPLOY_TOKEN to ${envFilePath}.`);
+      console.log('Add this file to your repository secrets manually if you want CI deployments.');
+      return;
+    } catch (error) {
+      console.error(`Failed to store the deploy token in ${envFilePath}:`, error);
+      process.exitCode = 1;
+      return;
+    }
+  }
+
+  if (process.stdout.isTTY) {
+    console.log('Copy the token above and add it to your GitHub secrets as FIREBASE_DEPLOY_TOKEN.');
+    console.log('Re-run with `npm run firebase:token -- --save` to persist it locally.');
+  }
+}
+
 function runLogin(command) {
   console.log(`Using ${command.label}.`);
   console.log('Running `firebase login:ci` — follow the prompts in your browser to authenticate.');
-  console.log('When the CLI prints a token, copy it and store it as FIREBASE_DEPLOY_TOKEN.');
+  console.log('Once complete, the generated token will be captured automatically.');
   console.log('Press Ctrl+C to cancel.\n');
 
+  let capturedStdout = '';
+  let capturedStderr = '';
+
   const child = spawn(command.command, ['login:ci'], {
-    stdio: 'inherit',
+    stdio: ['inherit', 'pipe', 'pipe'],
     env: process.env,
     cwd: workspaceRoot
   });
 
+  child.stdout.on('data', (chunk) => {
+    const value = chunk.toString();
+    capturedStdout += value;
+    process.stdout.write(value);
+  });
+
+  child.stderr.on('data', (chunk) => {
+    const value = chunk.toString();
+    capturedStderr += value;
+    process.stderr.write(value);
+  });
+
   child.on('exit', async (code) => {
     if (code === 0) {
-      console.log('\nFirebase CLI finished. Paste the token into your secrets or `.env` file.');
-      if (shouldSaveToken) {
-        try {
-          await promptToPersistToken(envFilePath);
-        } catch (error) {
-          console.error(`Failed to store the deploy token in ${envFilePath}:`, error);
-          process.exitCode = 1;
-          return;
-        }
+      const token = extractTokenFromOutput(capturedStdout) || extractTokenFromOutput(capturedStderr);
+
+      if (token) {
+        console.log(`\nDetected deploy token (${summarizeToken(token)}).`);
+        await handleTokenPersistence(token);
+      } else if (shouldSaveToken) {
+        await promptToPersistToken(envFilePath);
+      } else {
+        console.warn('\nToken could not be detected automatically. Copy it from the output above.');
+        console.warn('Re-run with `--save` to be prompted to store it in an env file.');
       }
     } else {
       console.error(`\nFirebase CLI exited with status ${code}.`);
