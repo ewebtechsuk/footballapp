@@ -45,6 +45,7 @@ for (const candidate of candidateBinaries) {
   }
 }
 
+const isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
 const simulateDeploy = () => {
   const firebaseArtifactsDir = path.join(projectRoot, '.firebase');
   const hostingSimDir = path.join(firebaseArtifactsDir, 'hosting-sim');
@@ -72,13 +73,25 @@ if (!firebaseBinary) {
 
 console.log('Deploying dist/web to Firebase Hosting…');
 
+if (!process.env.FIREBASE_DEPLOY_TOKEN && isCI) {
+  console.warn(
+    'FIREBASE_DEPLOY_TOKEN was not provided. Skipping the live Firebase Hosting deploy and generating the simulated output instead. Set the FIREBASE_DEPLOY_TOKEN repository secret (firebase login:ci) to enable real deployments from CI.'
+  );
+  simulateDeploy();
+}
+
+const deployEnv = {
+  ...process.env,
+};
+
+if (process.env.FIREBASE_DEPLOY_TOKEN) {
+  deployEnv.FIREBASE_DEPLOY_TOKEN = process.env.FIREBASE_DEPLOY_TOKEN;
+}
+
 const deployResult = spawnSync(firebaseBinary, ['deploy', '--only', 'hosting'], {
   cwd: projectRoot,
   stdio: 'inherit',
-  env: {
-    ...process.env,
-    FIREBASE_DEPLOY_TOKEN: process.env.FIREBASE_DEPLOY_TOKEN,
-  },
+  env: deployEnv,
   shell: resolvedViaPath,
 });
 
@@ -97,6 +110,9 @@ if (deployResult.status === 127 && resolvedViaPath) {
 
 if (deployResult.status !== 0) {
   console.error('\nFirebase deployment failed. Review the logs above for details.');
+  if (process.env.FIREBASE_DEPLOY_TOKEN) {
+    console.error('Ensure the FIREBASE_DEPLOY_TOKEN secret is valid (regenerate with "firebase login:ci" if necessary).');
+  }
   process.exit(deployResult.status ?? 1);
 }
 

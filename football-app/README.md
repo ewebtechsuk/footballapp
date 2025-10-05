@@ -66,7 +66,7 @@ To get started with the Football App, follow these steps:
 
 - A `Deploy to Firebase Hosting` workflow lives at `.github/workflows/deploy-firebase.yml`.
 - It runs on pushes to `main` and can also be invoked manually through the **Run workflow** button.
-- Populate these repository secrets so the workflow can authenticate with your Firebase project:
+- Populate these repository secrets so the workflow can authenticate with your Firebase project (if the deploy token is absent in CI the script will skip the live publish and fall back to the simulated `.firebase/hosting-sim` output):
   - `FIREBASE_DEPLOY_TOKEN` (from `firebase login:ci` or `firebase login:token`)
   - `FIREBASE_API_KEY`
   - `FIREBASE_AUTH_DOMAIN`
