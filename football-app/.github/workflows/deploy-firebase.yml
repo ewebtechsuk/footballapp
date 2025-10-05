@@ -36,15 +36,9 @@ jobs:
         working-directory: football-app
         run: npm test
 
-      - name: Install Firebase CLI
-        run: |
-          set +e
-          npm install --global firebase-tools
-          EXIT_CODE=$?
-          set -e
-          if [ "$EXIT_CODE" -ne 0 ]; then
-            echo "firebase-tools installation failed (exit code $EXIT_CODE); continuing with simulated deploy fallback."
-          fi
+      - name: Install Firebase CLI locally
+        working-directory: football-app
+        run: npm install --no-save firebase-tools
 
       - name: Deploy to Firebase Hosting
         working-directory: football-app
