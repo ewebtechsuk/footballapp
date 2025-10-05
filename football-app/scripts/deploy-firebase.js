@@ -4,6 +4,10 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
+const loadEnv = require('./load-env');
+
+loadEnv();
+
 const projectRoot = path.resolve(__dirname, '..');
 const expoProjectRoot = path.join(projectRoot, 'football-app-expo');
 const distDir = path.join(projectRoot, 'dist', 'web');
@@ -75,7 +79,7 @@ console.log('Deploying dist/web to Firebase Hosting…');
 
 if (!process.env.FIREBASE_DEPLOY_TOKEN && isCI) {
   console.warn(
-    'FIREBASE_DEPLOY_TOKEN was not provided. Skipping the live Firebase Hosting deploy and generating the simulated output instead. Set the FIREBASE_DEPLOY_TOKEN repository secret (firebase login:ci) to enable real deployments from CI.'
+    'FIREBASE_DEPLOY_TOKEN was not provided. Skipping the live Firebase Hosting deploy and generating the simulated output instead. Generate one with "firebase login:ci" (or "npm run firebase:token") and add the exact value as the FIREBASE_DEPLOY_TOKEN repository secret to enable real deployments from CI.'
   );
   simulateDeploy();
 }
