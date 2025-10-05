@@ -77,6 +77,18 @@ To get started with the Football App, follow these steps:
   - `FIREBASE_MEASUREMENT_ID` (optional, required only if Analytics is enabled)
 - The workflow installs dependencies, runs the existing tests, exports the Expo web build, and deploys it to Firebase Hosting using the same helper scripts that are available locally.
 
+### Generating a Firebase deploy token
+
+Run the bundled helper to launch the Firebase CLI login flow:
+
+```bash
+npm run firebase:token
+```
+
+The script looks for a local or global `firebase-tools` binary and, when found, runs `firebase login:ci` so you can authenticate in the browser. Copy the token that the CLI prints at the end of the flow and store it as `FIREBASE_DEPLOY_TOKEN` in your repository secrets (or a local `.env`) before rerunning `npm run deploy:firebase` or triggering the GitHub workflow.
+
+If the CLI is not installed, the helper prints installation instructions; install it globally with `npm install -g firebase-tools` (or add it to your dev dependencies) and retry.
+
 ## Project Structure
 
 The project is organized as follows:
