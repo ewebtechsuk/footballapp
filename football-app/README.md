@@ -61,6 +61,21 @@ To get started with the Football App, follow these steps:
    [`firebase-tools`](https://firebase.google.com/docs/cli) installed (`npm install -g firebase-tools`) and that you are logged in
    to the correct account (`firebase login`). You can also supply a `FIREBASE_DEPLOY_TOKEN` environment variable for CI deployments.
 
+### Continuous deployment via GitHub Actions
+
+- A `Deploy to Firebase Hosting` workflow lives at `.github/workflows/deploy-firebase.yml`.
+- It runs on pushes to `main` and can also be invoked manually through the **Run workflow** button.
+- Populate these repository secrets so the workflow can authenticate with your Firebase project:
+  - `FIREBASE_DEPLOY_TOKEN` (from `firebase login:ci` or `firebase login:token`)
+  - `FIREBASE_API_KEY`
+  - `FIREBASE_AUTH_DOMAIN`
+  - `FIREBASE_PROJECT_ID`
+  - `FIREBASE_STORAGE_BUCKET`
+  - `FIREBASE_MESSAGING_SENDER_ID`
+  - `FIREBASE_APP_ID`
+  - `FIREBASE_MEASUREMENT_ID` (optional, required only if Analytics is enabled)
+- The workflow installs dependencies, runs the existing tests, exports the Expo web build, and deploys it to Firebase Hosting using the same helper scripts that are available locally.
+
 ## Project Structure
 
 The project is organized as follows:
