@@ -4,33 +4,54 @@ const { spawnSync } = require('child_process');
 
 const projectRoot = path.resolve(__dirname, '..');
 const expoProjectRoot = path.join(projectRoot, 'football-app-expo');
-const expoBinary = process.platform === 'win32'
-  ? path.join(expoProjectRoot, 'node_modules', '.bin', 'expo.cmd')
-  : path.join(expoProjectRoot, 'node_modules', '.bin', 'expo');
-const outputRoot = path.join(projectRoot, 'dist', 'web');
+const expoBinaryName = process.platform === 'win32' ? 'expo.cmd' : 'expo';
+const candidateBinaries = [
+  path.join(projectRoot, 'node_modules', '.bin', expoBinaryName),
+  path.join(expoProjectRoot, 'node_modules', '.bin', expoBinaryName),
+  expoBinaryName,
+];
 
-if (!fs.existsSync(expoBinary)) {
+let expoBinary = null;
+let resolvedViaPath = false;
+
+for (const candidate of candidateBinaries) {
+  if (candidate.includes(path.sep)) {
+    if (fs.existsSync(candidate)) {
+      expoBinary = candidate;
+      break;
+    }
+  } else {
+    expoBinary = candidate;
+    resolvedViaPath = true;
+    break;
+  }
+}
+
+if (!expoBinary) {
   console.error(
-    `Unable to find the Expo CLI at "${expoBinary}". Ensure the vendored workspace is intact by running \"npm run link:modules\" first.`
+    'Unable to locate the Expo CLI. Run "npm install" to ensure the vendored workspace is linked or install expo globally.'
   );
   process.exit(1);
 }
 
+const projectOutputRoot = path.join(projectRoot, 'dist', 'web');
+
 console.log('Preparing Expo web preview build…');
 
-fs.rmSync(outputRoot, { recursive: true, force: true });
-fs.mkdirSync(outputRoot, { recursive: true });
+fs.rmSync(projectOutputRoot, { recursive: true, force: true });
+fs.mkdirSync(projectOutputRoot, { recursive: true });
 
 const result = spawnSync(
   expoBinary,
-  ['export', '--platform', 'web', '--output-dir', outputRoot],
+  ['export', '--platform', 'web', '--output-dir', projectOutputRoot],
   {
-    cwd: expoProjectRoot,
+    cwd: projectRoot,
     stdio: 'inherit',
     env: {
       ...process.env,
       EXPO_NO_TELEMETRY: '1',
     },
+    shell: resolvedViaPath,
   }
 );
 
@@ -39,5 +60,5 @@ if (result.status !== 0) {
   process.exit(result.status ?? 1);
 }
 
-console.log(`\nExpo web preview exported to ${outputRoot}`);
+console.log(`\nExpo web preview exported to ${projectOutputRoot}`);
 console.log('You can serve the preview locally with "npm run preview:web".');

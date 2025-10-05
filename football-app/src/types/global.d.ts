@@ -52,6 +52,17 @@ declare module 'react-native-safe-area-context' {
   export const useSafeAreaInsets: any;
 }
 
+declare module '@react-native-async-storage/async-storage' {
+  const AsyncStorage: {
+    getItem: (key: string) => Promise<string | null>;
+    setItem: (key: string, value: string) => Promise<void>;
+    removeItem: (key: string) => Promise<void>;
+    clear: () => Promise<void>;
+  };
+
+  export default AsyncStorage;
+}
+
 declare module '@react-navigation/native' {
   export const NavigationContainer: any;
   export function useNavigation<T = any>(): T;
@@ -111,6 +122,43 @@ declare module 'react-native-google-mobile-ads' {
     show: () => void;
     addAdEventListener: (...args: any[]) => () => void;
   }
+}
+
+declare module 'react-native-iap' {
+  export type Product = {
+    productId: string;
+    title: string;
+    description: string;
+    price: string;
+    currency?: string;
+  };
+
+  export type ProductPurchase = {
+    productId: string;
+    transactionId: string;
+    transactionReceipt: string | null;
+  };
+
+  export type PurchaseError = {
+    code: string;
+    message: string;
+  };
+
+  export type PurchaseResult = ProductPurchase;
+
+  export const initConnection: () => Promise<boolean>;
+  export const flushFailedPurchasesCachedAsPendingAndroid: () => Promise<void>;
+  export const endConnection: () => Promise<void>;
+  export const getProducts: (productIds: string[]) => Promise<Product[]>;
+  export const requestPurchase: (productId: string, ...args: any[]) => Promise<PurchaseResult>;
+  export const finishTransaction: (purchase: ProductPurchase, ...args: any[]) => Promise<void>;
+  export const getAvailablePurchases: () => Promise<ProductPurchase[]>;
+  export const purchaseUpdatedListener: (listener: (purchase: ProductPurchase) => void) => {
+    remove: () => void;
+  };
+  export const purchaseErrorListener: (listener: (error: PurchaseError) => void) => {
+    remove: () => void;
+  };
 }
 
 declare module 'firebase/app' {
