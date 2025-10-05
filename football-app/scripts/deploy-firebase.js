@@ -33,18 +33,10 @@ const candidateBinaries = [
 ];
 
 let firebaseBinary = null;
-let resolvedViaPath = false;
 
 for (const candidate of candidateBinaries) {
-  if (candidate.includes(path.sep)) {
-    if (fs.existsSync(candidate)) {
-      firebaseBinary = candidate;
-      break;
-    }
-  } else {
-    // Last resort: allow resolving via the shell PATH.
+  if (!candidate.includes(path.sep) || fs.existsSync(candidate)) {
     firebaseBinary = candidate;
-    resolvedViaPath = true;
     break;
   }
 }
@@ -108,7 +100,6 @@ const deployResult = spawnSync(firebaseBinary, deployArgs, {
   cwd: projectRoot,
   stdio: 'inherit',
   env: deployEnv,
-  shell: resolvedViaPath,
 });
 
 if (deployResult.error) {
@@ -118,10 +109,6 @@ if (deployResult.error) {
 
   console.error(`Failed to run Firebase CLI: ${deployResult.error.message}`);
   process.exit(1);
-}
-
-if (deployResult.status === 127 && resolvedViaPath) {
-  simulateDeploy();
 }
 
 if (deployResult.status !== 0) {
