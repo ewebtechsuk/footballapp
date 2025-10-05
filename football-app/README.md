@@ -24,15 +24,15 @@ To get started with the Football App, follow these steps:
    ```bash
    npm install
    ```
-   This project reuses the Expo workspace that lives in `football-app-expo/`. During installation a postinstall script links the
-   pre-populated `football-app-expo/node_modules` directory so the React Native bundle can resolve packages without reaching the
-   public npm registry. If access to the public registry is blocked (for example, in a restricted CI environment), you can still
-   prepare the dependencies without a network connection by running:
+   This project reuses the Expo workspace that lives in `football-app-expo/`. The tooling now ensures the symbolic link to the
+   vendored `football-app-expo/node_modules` directory is recreated automatically before installs, tests, builds, or Metro
+   sessions run, so you can run the usual npm scripts without worrying about registry access. If you want to refresh the link
+   manually—for example after cleaning the workspace—use the helper script:
    ```bash
-   npm run prepare:deps
+   npm run link:modules
    ```
-   When you need to refresh the dependencies, run `npm install` inside `football-app-expo/` (which already vendors the required
-   packages in this repository).
+   When you need to refresh the dependencies themselves, run `npm install` inside `football-app-expo/` (which already vendors the
+   required packages in this repository).
 
 3. **Run the Application**:
    ```bash
