@@ -88,7 +88,19 @@ if (process.env.FIREBASE_DEPLOY_TOKEN) {
   deployEnv.FIREBASE_DEPLOY_TOKEN = process.env.FIREBASE_DEPLOY_TOKEN;
 }
 
-const deployResult = spawnSync(firebaseBinary, ['deploy', '--only', 'hosting'], {
+const deployArgs = ['deploy', '--only', 'hosting'];
+const firebaseDeployToken =
+  process.env.FIREBASE_DEPLOY_TOKEN || process.env.FIREBASE_TOKEN || '';
+
+if (firebaseDeployToken) {
+  // Pass the token explicitly so the CLI never prompts for interactive auth.
+  deployArgs.push('--token', firebaseDeployToken);
+  // Normalise the environment variable name for firebase-tools (which still
+  // reads FIREBASE_TOKEN in some code paths) to avoid future regressions.
+  deployEnv.FIREBASE_TOKEN = firebaseDeployToken;
+}
+
+const deployResult = spawnSync(firebaseBinary, deployArgs, {
   cwd: projectRoot,
   stdio: 'inherit',
   env: deployEnv,
