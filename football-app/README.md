@@ -20,7 +20,14 @@ To get started with the Football App, follow these steps:
    cd football-app
    ```
 
-2. **Install Dependencies**:
+2. **Configure environment variables**:
+   ```bash
+   cp .env.example .env.local
+   ```
+   Fill in the values with your Firebase project settings (or export them through your shell). The `.env.local` file is ignored
+   by Git so your credentials stay private, and the same keys can be reused for CI secrets.
+
+3. **Install Dependencies**:
    ```bash
    npm install
    ```
@@ -34,26 +41,26 @@ To get started with the Football App, follow these steps:
    When you need to refresh the dependencies themselves, run `npm install` inside `football-app-expo/` (which already vendors the
    required packages in this repository).
 
-3. **Run the Application**:
+4. **Run the Application**:
    ```bash
    npm start
    ```
 
-4. **Create a Shareable Web Preview Build**:
+5. **Create a Shareable Web Preview Build**:
    ```bash
    npm run deploy:web
    ```
    This command uses the vendored Expo CLI to export the project to static assets in `dist/web`, making it easy to hand off the
    build for hosting or to test it in a regular browser without Metro.
 
-5. **Serve the Exported Preview Locally** (after running the export step):
+6. **Serve the Exported Preview Locally** (after running the export step):
    ```bash
    npm run preview:web
    ```
    The script starts a lightweight static server (defaulting to http://localhost:4173) that serves the exported bundle so you can
    click through the experience exactly as end users would.
 
-6. **Deploy the Web Build to Firebase Hosting**:
+7. **Deploy the Web Build to Firebase Hosting**:
    ```bash
    npm run deploy:firebase
    ```
@@ -85,7 +92,15 @@ Run the bundled helper to launch the Firebase CLI login flow:
 npm run firebase:token
 ```
 
-The script looks for a local or global `firebase-tools` binary and, when found, runs `firebase login:ci` so you can authenticate in the browser. Copy the token that the CLI prints at the end of the flow and store it as `FIREBASE_DEPLOY_TOKEN` in your repository secrets (or a local `.env`) before rerunning `npm run deploy:firebase` or triggering the GitHub workflow.
+The script looks for a local or global `firebase-tools` binary and, when found, runs `firebase login:ci` so you can authenticate in the browser. Copy the token that the CLI prints at the end of the flow and store it as `FIREBASE_DEPLOY_TOKEN` in your repository secrets (or a local `.env`).
+
+Add `--save` to the command to be prompted to paste the token straight into `.env.local` (use `--env=<path>` to pick a custom env file):
+
+```bash
+npm run firebase:token -- --save
+```
+
+Once the token is saved locally you can re-run the command to regenerate or replace it at any time; remember to replicate the value in your GitHub repository secrets so the CI workflow can deploy.
 
 If the CLI is not installed, the helper prints installation instructions; install it globally with `npm install -g firebase-tools` (or add it to your dev dependencies) and retry.
 

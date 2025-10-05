@@ -4,8 +4,16 @@
 const { spawnSync, spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const readline = require('readline');
 
 const workspaceRoot = path.resolve(__dirname, '..');
+const defaultEnvFile = path.join(workspaceRoot, '.env.local');
+const args = process.argv.slice(2);
+const shouldSaveToken = args.includes('--save');
+const envPathArgument = args.find((arg) => arg.startsWith('--env='));
+const envFilePath = envPathArgument
+  ? path.resolve(workspaceRoot, envPathArgument.split('=')[1])
+  : defaultEnvFile;
 const isWindows = process.platform === 'win32';
 const localBinary = path.join(
   workspaceRoot,
@@ -58,6 +66,65 @@ function printSetupHelp() {
   console.error('  npm run firebase:token');
   console.error('\nThis helper simply wraps `firebase login:ci` so you can copy the generated token');
   console.error('into the FIREBASE_DEPLOY_TOKEN secret (or your local environment variable).');
+  console.error('\nOptional helpers:');
+  console.error('  npm run firebase:token -- --save       # prompt to store the token in .env.local');
+  console.error('  npm run firebase:token -- --env=.env   # pick a custom env file when saving');
+}
+
+function ensureTrailingNewline(value) {
+  return value.endsWith('\n') ? value : `${value}\n`;
+}
+
+function upsertEnvValue(filePath, key, value) {
+  let content = '';
+
+  if (fs.existsSync(filePath)) {
+    content = fs.readFileSync(filePath, 'utf8');
+  }
+
+  const line = `${key}=${value}`;
+  const envPattern = new RegExp(`^${key}=.*$`, 'm');
+
+  if (envPattern.test(content)) {
+    content = content.replace(envPattern, line);
+  } else {
+    if (content.length > 0 && !content.endsWith('\n')) {
+      content = ensureTrailingNewline(content);
+    }
+    content += ensureTrailingNewline(line);
+  }
+
+  fs.writeFileSync(filePath, content);
+}
+
+async function promptToPersistToken(filePath) {
+  if (!process.stdin.isTTY) {
+    console.warn('\nCannot capture token automatically because the terminal is not interactive.');
+    console.warn(`Add FIREBASE_DEPLOY_TOKEN to ${filePath} manually.`);
+    return;
+  }
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  const token = await new Promise((resolve) => {
+    rl.question('\nPaste the deploy token printed above to store it locally: ', (answer) => {
+      rl.close();
+      resolve(answer.trim());
+    });
+  });
+
+  if (!token) {
+    console.warn('No token entered. Skipping save.');
+    return;
+  }
+
+  upsertEnvValue(filePath, 'FIREBASE_DEPLOY_TOKEN', token);
+
+  console.log(`Saved FIREBASE_DEPLOY_TOKEN to ${filePath}.`);
+  console.log('Commit this file only if you intend to share the token (typically it should remain untracked).');
 }
 
 function runLogin(command) {
@@ -72,9 +139,18 @@ function runLogin(command) {
     cwd: workspaceRoot
   });
 
-  child.on('exit', (code) => {
+  child.on('exit', async (code) => {
     if (code === 0) {
       console.log('\nFirebase CLI finished. Paste the token into your secrets or `.env` file.');
+      if (shouldSaveToken) {
+        try {
+          await promptToPersistToken(envFilePath);
+        } catch (error) {
+          console.error(`Failed to store the deploy token in ${envFilePath}:`, error);
+          process.exitCode = 1;
+          return;
+        }
+      }
     } else {
       console.error(`\nFirebase CLI exited with status ${code}.`);
       console.error('If the browser window closed early, rerun the command.');
