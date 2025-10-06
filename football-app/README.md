@@ -130,9 +130,9 @@ secret (for example, `FIREBASE_DEPLOY_TOKEN`):
 
 - A `Deploy to Firebase Hosting` workflow lives at `.github/workflows/deploy-firebase.yml`.
 - It runs on pushes to `main` and can also be invoked manually through the **Run workflow** button.
-- Populate the `FIREBASE_SERVICE_ACCOUNT_KEY` repository secret with a Firebase service account JSON key that has Hosting permissions. The workflow materialises this secret to a temporary file and exports it via `GOOGLE_APPLICATION_CREDENTIALS` so the Firebase CLI can authenticate non-interactively.
+- Populate the `FIREBASE_SERVICE_ACCOUNT_KEY` repository secret with a Firebase service account JSON key that has Hosting permissions. Grant the service account at least the **Firebase Hosting Admin** and **Service Account Token Creator** roles before exporting the key so the deploy step can mint access tokens. If your secret manager struggles with multiline values, store a base64-encoded version of the JSON in `FIREBASE_SERVICE_ACCOUNT_KEY_BASE64` instead. The workflow materialises whichever secret is present to a temporary file, exports it via both `GOOGLE_APPLICATION_CREDENTIALS` and `FIREBASE_SERVICE_ACCOUNT`, and forwards the derived project identifier to the deploy step so the Firebase CLI can authenticate non-interactively. If you are still relying on legacy CI tokens, you can instead provide a `FIREBASE_DEPLOY_TOKEN` secret—the workflow falls back to `firebase deploy --token <value>` only when no service account key is available.
 - The workflow installs dependencies, runs the existing tests, exports the Expo web build, and deploys it to Firebase Hosting using the same helper scripts that are available locally.
-- If the deploy step fails with authentication errors, re-generate the service account key from **Project Settings → Service Accounts → Generate new private key**, update the `FIREBASE_SERVICE_ACCOUNT_KEY` secret, and re-run the workflow.
+- If the deploy step fails with authentication errors, re-generate the service account key from **Project Settings → Service Accounts → Generate new private key**, update the `FIREBASE_SERVICE_ACCOUNT_KEY` secret (or refresh the `FIREBASE_DEPLOY_TOKEN`), and re-run the workflow.
 
 ## Project Structure
 
