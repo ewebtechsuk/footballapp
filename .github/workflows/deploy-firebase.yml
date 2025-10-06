@@ -20,7 +20,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: npm
           cache-dependency-path: football-app/package-lock.json
 
@@ -41,16 +41,79 @@ jobs:
         run: npm run deploy:web
 
       - name: Configure Firebase credentials
+        id: firebase-credentials
         run: |
-          cat <<EOF > "${RUNNER_TEMP}/firebase-service-account.json"
-          ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
-          EOF
-          echo "GOOGLE_APPLICATION_CREDENTIALS=${RUNNER_TEMP}/firebase-service-account.json" >> "$GITHUB_ENV"
+          set -euo pipefail
+
+          credentials_path="${RUNNER_TEMP}/firebase-service-account.json"
+          service_account_raw='${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}'
+          service_account_b64='${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64 }}'
+          deploy_token='${{ secrets.FIREBASE_DEPLOY_TOKEN }}'
+
+          if [ -n "${service_account_raw}" ] || [ -n "${service_account_b64}" ]; then
+            export CREDENTIALS_PATH="${credentials_path}"
+            export SERVICE_ACCOUNT_RAW="${service_account_raw}"
+            export SERVICE_ACCOUNT_B64="${service_account_b64}"
+
+            python - <<'PY'
+import base64
+import json
+import os
+import pathlib
+import sys
+
+path = pathlib.Path(os.environ["CREDENTIALS_PATH"])
+raw = os.environ.get("SERVICE_ACCOUNT_RAW", "")
+b64 = os.environ.get("SERVICE_ACCOUNT_B64", "")
+
+if raw.strip():
+    content = raw
+elif b64.strip():
+    try:
+        normalised = "".join(b64.split())
+        decoded = base64.b64decode(normalised, validate=True)
+        content = decoded.decode("utf-8")
+    except Exception as exc:  # pragma: no cover - CI validation only
+        print(f"::error::Failed to decode FIREBASE_SERVICE_ACCOUNT_KEY_BASE64: {exc}")
+        sys.exit(1)
+else:
+    print("::error::Firebase service account secret is empty. Provide FIREBASE_SERVICE_ACCOUNT_KEY or FIREBASE_SERVICE_ACCOUNT_KEY_BASE64.")
+    sys.exit(1)
+
+try:
+    json.loads(content)
+except json.JSONDecodeError as exc:  # pragma: no cover - CI validation only
+    print(f"::error::Firebase service account key is not valid JSON: {exc}")
+    sys.exit(1)
+
+path.write_text(content)
+PY
+
+            chmod 600 "${credentials_path}"
+            echo "GOOGLE_APPLICATION_CREDENTIALS=${credentials_path}" >> "$GITHUB_ENV"
+            echo "credentials_path=${credentials_path}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ -n "${deploy_token}" ]; then
+            echo "deploy_token=${deploy_token}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo '::error::Configure FIREBASE_SERVICE_ACCOUNT_KEY (preferred), FIREBASE_SERVICE_ACCOUNT_KEY_BASE64, or FIREBASE_DEPLOY_TOKEN so the deploy step can authenticate.'
+          exit 1
 
       - name: Deploy to Firebase Hosting
         working-directory: football-app
         env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ env.GOOGLE_APPLICATION_CREDENTIALS }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.firebase-credentials.outputs.credentials_path }}
+          FIREBASE_DEPLOY_TOKEN: ${{ steps.firebase-credentials.outputs.deploy_token }}
         run: |
+          set -euo pipefail
           npm install --global firebase-tools
-          firebase deploy --only hosting
+
+          if [ -n "${FIREBASE_DEPLOY_TOKEN:-}" ]; then
+            firebase deploy --only hosting --token "${FIREBASE_DEPLOY_TOKEN}"
+          else
+            firebase deploy --only hosting
+          fi
