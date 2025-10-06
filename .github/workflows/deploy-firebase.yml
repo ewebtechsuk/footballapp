@@ -42,13 +42,17 @@ jobs:
 
       - name: Configure Firebase credentials
         id: firebase-credentials
+        env:
+          FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+          FIREBASE_SERVICE_ACCOUNT_KEY_BASE64: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64 }}
+          FIREBASE_DEPLOY_TOKEN: ${{ secrets.FIREBASE_DEPLOY_TOKEN }}
         run: |
           set -euo pipefail
 
           credentials_path="${RUNNER_TEMP}/firebase-service-account.json"
-          service_account_raw='${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}'
-          service_account_b64='${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64 }}'
-          deploy_token='${{ secrets.FIREBASE_DEPLOY_TOKEN }}'
+          service_account_raw="${FIREBASE_SERVICE_ACCOUNT_KEY:-}"
+          service_account_b64="${FIREBASE_SERVICE_ACCOUNT_KEY_BASE64:-}"
+          deploy_token="${FIREBASE_DEPLOY_TOKEN:-}"
 
           if [ -n "${service_account_raw}" ] || [ -n "${service_account_b64}" ]; then
             export CREDENTIALS_PATH="${credentials_path}"
@@ -57,12 +61,14 @@ jobs:
 
             node .github/scripts/validate-firebase-credentials.cjs
 
+            echo "::notice::Using Firebase service account credentials for deployment."
             echo "GOOGLE_APPLICATION_CREDENTIALS=${credentials_path}" >> "$GITHUB_ENV"
             echo "credentials_path=${credentials_path}" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           if [ -n "${deploy_token}" ]; then
+            echo "::notice::Using Firebase deploy token for deployment."
             echo "deploy_token=${deploy_token}" >> "$GITHUB_OUTPUT"
             exit 0
           fi
