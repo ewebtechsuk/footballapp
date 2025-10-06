@@ -69,7 +69,7 @@ jobs:
             fi
 
             {
-              echo "FIREBASE_SERVICE_ACCOUNT<<'EOF'"
+              echo "FIREBASE_SERVICE_ACCOUNT<<EOF"
               cat "${credentials_path}"
               echo
               echo 'EOF'
