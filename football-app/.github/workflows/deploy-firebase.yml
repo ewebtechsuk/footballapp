@@ -53,5 +53,9 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ env.GOOGLE_APPLICATION_CREDENTIALS }}
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
+          if [ -z "$FIREBASE_TOKEN" ]; then
+            echo "\"FIREBASE_TOKEN\" secret is missing. Add it in the repository settings to enable non-interactive Firebase authentication." >&2
+            exit 1
+          fi
           npm install --global firebase-tools
           firebase deploy --only hosting --token "$FIREBASE_TOKEN"
