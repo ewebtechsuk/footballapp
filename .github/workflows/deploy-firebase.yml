@@ -55,68 +55,7 @@ jobs:
             export FIREBASE_SERVICE_ACCOUNT_KEY_RAW="${service_account_raw}"
             export FIREBASE_SERVICE_ACCOUNT_KEY_BASE64="${service_account_b64}"
 
-            if ! node - <<'NODE'; then
-              exit 1
-            fi
-
-const fs = require('fs');
-
-const path = process.env.CREDENTIALS_PATH;
-const raw = process.env.FIREBASE_SERVICE_ACCOUNT_KEY_RAW || '';
-const b64 = process.env.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64 || '';
-
-let content = raw.trim();
-
-if (!content) {
-  const normalised = b64.replace(/\s+/g, '');
-
-  if (!normalised) {
-    console.log('::error::Firebase service account secret is empty. Provide FIREBASE_SERVICE_ACCOUNT_KEY or FIREBASE_SERVICE_ACCOUNT_KEY_BASE64.');
-    process.exit(1);
-  }
-
-  if (!/^[A-Za-z0-9+/=_-]+$/.test(normalised)) {
-    console.log('::error::FIREBASE_SERVICE_ACCOUNT_KEY_BASE64 is not valid base64 data.');
-    process.exit(1);
-  }
-
-  try {
-    let decodeSource = normalised.replace(/-/g, '+').replace(/_/g, '/');
-    if (decodeSource.length % 4 !== 0) {
-      decodeSource = decodeSource.padEnd(decodeSource.length + (4 - (decodeSource.length % 4)), '=');
-    }
-
-    const decoded = Buffer.from(decodeSource, 'base64');
-    const reencoded = decoded.toString('base64').replace(/=+$/, '');
-    const expected = decodeSource.replace(/=+$/, '');
-
-    if (!decoded.length || reencoded !== expected) {
-      throw new Error('Decoded content is empty or corrupted.');
-    }
-
-    content = decoded.toString('utf8');
-  } catch (error) {
-    console.log(`::error::Failed to decode FIREBASE_SERVICE_ACCOUNT_KEY_BASE64: ${error.message}`);
-    process.exit(1);
-  }
-}
-
-const trimmed = content.trim();
-
-if (!trimmed) {
-  console.log('::error::Firebase service account key is empty after decoding.');
-  process.exit(1);
-}
-
-try {
-  JSON.parse(trimmed);
-} catch (error) {
-  console.log(`::error::Firebase service account key is not valid JSON: ${error.message}`);
-  process.exit(1);
-}
-
-fs.writeFileSync(path, trimmed, { encoding: 'utf8', mode: 0o600 });
-NODE
+            node .github/scripts/validate-firebase-credentials.cjs
 
             echo "GOOGLE_APPLICATION_CREDENTIALS=${credentials_path}" >> "$GITHUB_ENV"
             echo "credentials_path=${credentials_path}" >> "$GITHUB_OUTPUT"
