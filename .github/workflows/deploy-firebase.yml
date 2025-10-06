@@ -69,9 +69,9 @@ jobs:
             fi
 
             {
-              echo "FIREBASE_SERVICE_ACCOUNT<<'EOF'"
+              echo "FIREBASE_SERVICE_ACCOUNT<<EOF"
               cat "${credentials_path}"
-              echo 'EOF'
+              echo "EOF"
             } >> "$GITHUB_ENV"
 
             echo "FIREBASE_PROJECT=${project_id}" >> "$GITHUB_ENV"
