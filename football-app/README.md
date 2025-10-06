@@ -79,6 +79,30 @@ To get started with the Football App, follow these steps:
    it as a dev dependency) and authenticate with `firebase login` or point the `GOOGLE_APPLICATION_CREDENTIALS` environment
    variable at a Firebase service account key JSON when you are ready to publish.
 
+## Firebase CLI installation troubleshooting
+
+Because this project relies on the Firebase CLI for real Hosting deploys, double-check that `firebase-tools` can actually be
+installed in your environment before running the deploy scripts.
+
+1. **Verify the current state** – run `firebase --version`. If the command is missing, attempt a manual installation with
+   `npm install -g firebase-tools` and keep the terminal output handy. HTTP `403 Forbidden` responses almost always mean that a
+   network proxy or firewall is blocking npm from reaching `https://registry.npmjs.org`.
+2. **Fix proxy restrictions** – allowlist the npm registry domains (at minimum `https://registry.npmjs.org` and
+   `https://firebase.tools`) in your proxy or configure npm with the correct proxy credentials:
+   ```bash
+   npm config set proxy http://<user>:<password>@<proxy-host>:<proxy-port>
+   npm config set https-proxy http://<user>:<password>@<proxy-host>:<proxy-port>
+   ```
+   Re-run the install after updating the proxy settings to confirm that the CLI downloads successfully.
+3. **Offline installation fallback** – if you cannot change the proxy, download the
+   [`firebase-tools` tarball](https://registry.npmjs.org/firebase-tools) from a machine that has access, copy it into this
+   environment, and install it directly:
+   ```bash
+   npm install -g /path/to/firebase-tools-<version>.tgz
+   ```
+   After the CLI is installed, retry `firebase --version` to confirm the binary is now available. The deploy scripts will pick up
+   the globally installed CLI automatically.
+
 ### Continuous deployment via GitHub Actions
 
 - A `Deploy to Firebase Hosting` workflow lives at `.github/workflows/deploy-firebase.yml`.
