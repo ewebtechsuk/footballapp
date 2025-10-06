@@ -103,6 +103,29 @@ installed in your environment before running the deploy scripts.
    After the CLI is installed, retry `firebase --version` to confirm the binary is now available. The deploy scripts will pick up
    the globally installed CLI automatically.
 
+### Generating Firebase CI tokens
+
+To authenticate Firebase Hosting deploys from CI environments, generate a reusable token with the Firebase CLI and store it as a
+secret (for example, `FIREBASE_DEPLOY_TOKEN`):
+
+1. **Install the Firebase CLI** – confirm `firebase-tools` is available by running `firebase --version`. If you see “command not
+   found,” install it globally with `npm install -g firebase-tools`. When you are behind a proxy or working offline, follow the
+   troubleshooting section above for alternative installation strategies.
+2. **Launch the CI login flow** – run `firebase login:ci`. The command opens a browser so you can sign in with a Google account
+   that has access to the Firebase project. After you approve the permissions, the CLI prints a long-lived CI token to the
+   terminal. Copy this value immediately; it will not be shown again. Recent versions of the CLI print a warning that
+   `firebase login:ci` is deprecated in favour of service account credentials—tokens generated today continue to work, but you
+   should plan to migrate to the `GOOGLE_APPLICATION_CREDENTIALS` workflow described below.
+3. **Use the bundled helper** – this repository exposes a wrapper script that captures the token for you. Run
+   `npm run firebase:token` (or `npm run firebase:token -- --save` to write it to `.env.local`). For environments without local
+   browser access, use `npm run firebase:token:no-localhost` to complete the OAuth flow from another device. If the CLI cannot
+   open a browser (for example, on a headless CI runner), it prints a login URL you can paste into another device to finish the
+   authentication.
+4. **Store the token securely** – add the copied token to your CI secret store (for GitHub Actions, use `Settings → Secrets and
+   variables → Actions`) so automated workflows can authenticate without manual intervention. When you migrate to service account
+   keys, set the path to the downloaded JSON in `GOOGLE_APPLICATION_CREDENTIALS` for local scripts and encode the file as the
+   `FIREBASE_SERVICE_ACCOUNT_KEY` secret for GitHub Actions.
+
 ### Continuous deployment via GitHub Actions
 
 - A `Deploy to Firebase Hosting` workflow lives at `.github/workflows/deploy-firebase.yml`.
