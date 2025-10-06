@@ -52,53 +52,72 @@ jobs:
 
           if [ -n "${service_account_raw}" ] || [ -n "${service_account_b64}" ]; then
             export CREDENTIALS_PATH="${credentials_path}"
-            export SERVICE_ACCOUNT_RAW="${service_account_raw}"
-            export SERVICE_ACCOUNT_B64="${service_account_b64}"
+            export FIREBASE_SERVICE_ACCOUNT_KEY_RAW="${service_account_raw}"
+            export FIREBASE_SERVICE_ACCOUNT_KEY_BASE64="${service_account_b64}"
 
-            if command -v python3 >/dev/null 2>&1; then
-              PYTHON_BIN="python3"
-            elif command -v python >/dev/null 2>&1; then
-              PYTHON_BIN="python"
-            else
-              echo "::error::Python is required to validate FIREBASE_SERVICE_ACCOUNT_KEY but is not available on this runner."
+            if ! node - <<'NODE'; then
               exit 1
             fi
 
-            "${PYTHON_BIN}" - <<'PY'
-import base64
-import json
-import os
-import pathlib
-import sys
+const fs = require('fs');
 
-path = pathlib.Path(os.environ["CREDENTIALS_PATH"])
-raw = os.environ.get("SERVICE_ACCOUNT_RAW", "")
-b64 = os.environ.get("SERVICE_ACCOUNT_B64", "")
+const path = process.env.CREDENTIALS_PATH;
+const raw = process.env.FIREBASE_SERVICE_ACCOUNT_KEY_RAW || '';
+const b64 = process.env.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64 || '';
 
-if raw.strip():
-    content = raw
-elif b64.strip():
-    try:
-        normalised = "".join(b64.split())
-        decoded = base64.b64decode(normalised, validate=True)
-        content = decoded.decode("utf-8")
-    except Exception as exc:  # pragma: no cover - CI validation only
-        print(f"::error::Failed to decode FIREBASE_SERVICE_ACCOUNT_KEY_BASE64: {exc}")
-        sys.exit(1)
-else:
-    print("::error::Firebase service account secret is empty. Provide FIREBASE_SERVICE_ACCOUNT_KEY or FIREBASE_SERVICE_ACCOUNT_KEY_BASE64.")
-    sys.exit(1)
+let content = raw.trim();
 
-try:
-    json.loads(content)
-except json.JSONDecodeError as exc:  # pragma: no cover - CI validation only
-    print(f"::error::Firebase service account key is not valid JSON: {exc}")
-    sys.exit(1)
+if (!content) {
+  const normalised = b64.replace(/\s+/g, '');
 
-path.write_text(content)
-PY
+  if (!normalised) {
+    console.log('::error::Firebase service account secret is empty. Provide FIREBASE_SERVICE_ACCOUNT_KEY or FIREBASE_SERVICE_ACCOUNT_KEY_BASE64.');
+    process.exit(1);
+  }
 
-            chmod 600 "${credentials_path}"
+  if (!/^[A-Za-z0-9+/=_-]+$/.test(normalised)) {
+    console.log('::error::FIREBASE_SERVICE_ACCOUNT_KEY_BASE64 is not valid base64 data.');
+    process.exit(1);
+  }
+
+  try {
+    let decodeSource = normalised.replace(/-/g, '+').replace(/_/g, '/');
+    if (decodeSource.length % 4 !== 0) {
+      decodeSource = decodeSource.padEnd(decodeSource.length + (4 - (decodeSource.length % 4)), '=');
+    }
+
+    const decoded = Buffer.from(decodeSource, 'base64');
+    const reencoded = decoded.toString('base64').replace(/=+$/, '');
+    const expected = decodeSource.replace(/=+$/, '');
+
+    if (!decoded.length || reencoded !== expected) {
+      throw new Error('Decoded content is empty or corrupted.');
+    }
+
+    content = decoded.toString('utf8');
+  } catch (error) {
+    console.log(`::error::Failed to decode FIREBASE_SERVICE_ACCOUNT_KEY_BASE64: ${error.message}`);
+    process.exit(1);
+  }
+}
+
+const trimmed = content.trim();
+
+if (!trimmed) {
+  console.log('::error::Firebase service account key is empty after decoding.');
+  process.exit(1);
+}
+
+try {
+  JSON.parse(trimmed);
+} catch (error) {
+  console.log(`::error::Firebase service account key is not valid JSON: ${error.message}`);
+  process.exit(1);
+}
+
+fs.writeFileSync(path, trimmed, { encoding: 'utf8', mode: 0o600 });
+NODE
+
             echo "GOOGLE_APPLICATION_CREDENTIALS=${credentials_path}" >> "$GITHUB_ENV"
             echo "credentials_path=${credentials_path}" >> "$GITHUB_OUTPUT"
             exit 0
