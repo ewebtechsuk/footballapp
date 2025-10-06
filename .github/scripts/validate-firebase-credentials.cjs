@@ -53,10 +53,19 @@ if (!trimmed) {
   fail('Firebase service account key is empty after decoding.');
 }
 
+let parsed;
 try {
-  JSON.parse(trimmed);
+  parsed = JSON.parse(trimmed);
 } catch (error) {
   fail(`Firebase service account key is not valid JSON: ${error.message}`);
+}
+
+if (!parsed || parsed.type !== 'service_account') {
+  fail('Firebase credential must be a service account JSON key (type "service_account").');
+}
+
+if (!parsed.project_id) {
+  fail('Firebase service account JSON is missing "project_id".');
 }
 
 try {
@@ -64,3 +73,5 @@ try {
 } catch (error) {
   fail(`Failed to write credentials file: ${error.message}`);
 }
+
+module.exports = parsed;

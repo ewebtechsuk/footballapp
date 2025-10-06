@@ -61,6 +61,22 @@ jobs:
 
             node .github/scripts/validate-firebase-credentials.cjs
 
+            project_id=$(node -e "const fs=require('fs');const data=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(data.project_id||'');" "${credentials_path}")
+
+            if [ -z "${project_id}" ]; then
+              echo '::error::Firebase service account JSON is missing project_id.'
+              exit 1
+            fi
+
+            {
+              echo "FIREBASE_SERVICE_ACCOUNT<<'EOF'"
+              cat "${credentials_path}"
+              echo 'EOF'
+            } >> "$GITHUB_ENV"
+
+            echo "FIREBASE_PROJECT=${project_id}" >> "$GITHUB_ENV"
+            echo "project_id=${project_id}" >> "$GITHUB_OUTPUT"
+
             echo "::notice::Using Firebase service account credentials for deployment."
             echo "GOOGLE_APPLICATION_CREDENTIALS=${credentials_path}" >> "$GITHUB_ENV"
             echo "credentials_path=${credentials_path}" >> "$GITHUB_OUTPUT"
@@ -81,12 +97,21 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.firebase-credentials.outputs.credentials_path }}
           FIREBASE_DEPLOY_TOKEN: ${{ steps.firebase-credentials.outputs.deploy_token }}
+          FIREBASE_PROJECT: ${{ steps.firebase-credentials.outputs.project_id }}
         run: |
           set -euo pipefail
           npm install --global firebase-tools
 
           if [ -n "${FIREBASE_DEPLOY_TOKEN:-}" ]; then
-            firebase deploy --only hosting --token "${FIREBASE_DEPLOY_TOKEN}"
+            if [ -n "${FIREBASE_PROJECT:-}" ]; then
+              firebase deploy --only hosting --project "${FIREBASE_PROJECT}" --token "${FIREBASE_DEPLOY_TOKEN}"
+            else
+              firebase deploy --only hosting --token "${FIREBASE_DEPLOY_TOKEN}"
+            fi
           else
-            firebase deploy --only hosting
+            if [ -n "${FIREBASE_PROJECT:-}" ]; then
+              firebase deploy --only hosting --project "${FIREBASE_PROJECT}"
+            else
+              firebase deploy --only hosting
+            fi
           fi
