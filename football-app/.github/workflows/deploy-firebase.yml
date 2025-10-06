@@ -51,6 +51,7 @@ jobs:
         working-directory: football-app
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ env.GOOGLE_APPLICATION_CREDENTIALS }}
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
           npm install --global firebase-tools
-          firebase deploy --only hosting
+          firebase deploy --only hosting --token "$FIREBASE_TOKEN"
