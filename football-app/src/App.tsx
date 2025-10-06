@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Provider } from 'react-redux';
+import { Platform } from 'react-native';
 import mobileAds, { MaxAdContentRating } from 'react-native-google-mobile-ads';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -39,11 +40,13 @@ const PremiumBootstrapper = () => {
 
 const App = () => {
   useEffect(() => {
-    mobileAds()
-      .setRequestConfiguration({
-        maxAdContentRating: MaxAdContentRating.T,
-      })
-      .then(() => mobileAds().initialize());
+    if (Platform.OS !== 'web') {
+      mobileAds()
+        .setRequestConfiguration({
+          maxAdContentRating: MaxAdContentRating.T,
+        })
+        .then(() => mobileAds().initialize());
+    }
   }, []);
 
   return (
