@@ -71,6 +71,7 @@ jobs:
             {
               echo "FIREBASE_SERVICE_ACCOUNT<<'EOF'"
               cat "${credentials_path}"
+              echo
               echo 'EOF'
             } >> "$GITHUB_ENV"
 
