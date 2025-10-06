@@ -12,6 +12,8 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
 
     steps:
       - name: Check out repository
@@ -46,6 +48,12 @@ jobs:
           ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
           EOF
           echo "GOOGLE_APPLICATION_CREDENTIALS=${RUNNER_TEMP}/firebase-service-account.json" >> "$GITHUB_ENV"
+
+      - name: Verify Firebase token is configured
+        if: ${{ env.FIREBASE_TOKEN == '' }}
+        run: |
+          echo '"FIREBASE_TOKEN" secret is missing. Add it in the repository settings to enable non-interactive Firebase authentication.' >&2
+          exit 1
 
       - name: Deploy to Firebase Hosting
         working-directory: football-app
