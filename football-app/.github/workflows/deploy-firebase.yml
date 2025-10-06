@@ -47,10 +47,17 @@ jobs:
           EOF
           echo "GOOGLE_APPLICATION_CREDENTIALS=${RUNNER_TEMP}/firebase-service-account.json" >> "$GITHUB_ENV"
 
+      - name: Verify Firebase token is configured
+        if: ${{ !secrets.FIREBASE_TOKEN }}
+        run: |
+          echo '"FIREBASE_TOKEN" secret is missing. Generate one with "firebase login:ci" and add it in the repository settings to enable non-interactive Firebase authentication.' >&2
+          exit 1
+
       - name: Deploy to Firebase Hosting
         working-directory: football-app
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ env.GOOGLE_APPLICATION_CREDENTIALS }}
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
           npm install --global firebase-tools
-          firebase deploy --only hosting
+          firebase deploy --only hosting --token "$FIREBASE_TOKEN"
