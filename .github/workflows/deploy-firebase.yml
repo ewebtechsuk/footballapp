@@ -55,7 +55,16 @@ jobs:
             export SERVICE_ACCOUNT_RAW="${service_account_raw}"
             export SERVICE_ACCOUNT_B64="${service_account_b64}"
 
-            python - <<'PY'
+            if command -v python3 >/dev/null 2>&1; then
+              PYTHON_BIN="python3"
+            elif command -v python >/dev/null 2>&1; then
+              PYTHON_BIN="python"
+            else
+              echo "::error::Python is required to validate FIREBASE_SERVICE_ACCOUNT_KEY but is not available on this runner."
+              exit 1
+            fi
+
+            "${PYTHON_BIN}" - <<'PY'
 import base64
 import json
 import os
