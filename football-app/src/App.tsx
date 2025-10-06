@@ -3,7 +3,6 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Provider } from 'react-redux';
 import { Platform } from 'react-native';
-import mobileAds, { MaxAdContentRating } from 'react-native-google-mobile-ads';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 
@@ -41,11 +40,20 @@ const PremiumBootstrapper = () => {
 const App = () => {
   useEffect(() => {
     if (Platform.OS !== 'web') {
-      mobileAds()
-        .setRequestConfiguration({
-          maxAdContentRating: MaxAdContentRating.T,
-        })
-        .then(() => mobileAds().initialize());
+      (async () => {
+        try {
+          const adsModule = await import('react-native-google-mobile-ads');
+          const mobileAdsInstance = adsModule.default;
+
+          await mobileAdsInstance().setRequestConfiguration({
+            maxAdContentRating: adsModule.MaxAdContentRating.T,
+          });
+
+          await mobileAdsInstance().initialize();
+        } catch (error) {
+          console.error('Failed to initialize mobile ads', error);
+        }
+      })();
     }
   }, []);
 
