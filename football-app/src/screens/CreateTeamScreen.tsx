@@ -6,7 +6,7 @@ import { useNavigation } from '@react-navigation/native';
 
 import { RootStackParamList } from '../types/navigation';
 import { useAppDispatch } from '../store/hooks';
-import { addTeam } from '../store/slices/teamsSlice';
+import { addTeam, defaultTeamSettings } from '../store/slices/teamsSlice';
 
 type CreateTeamScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'CreateTeam'>;
 
@@ -36,6 +36,7 @@ const CreateTeamScreen: React.FC = () => {
         id: `${Date.now()}`,
         name: teamName,
         members: teamMembers,
+        settings: { ...defaultTeamSettings },
       }),
     );
 
