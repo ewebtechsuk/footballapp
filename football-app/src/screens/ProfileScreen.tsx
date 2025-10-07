@@ -171,7 +171,7 @@ const ProfileScreen: React.FC = () => {
     setProfileForm(profile);
   }, [profile]);
 
-  const socialFields = useMemo<
+  const socialFieldConfigs = useMemo<
     Array<{ key: keyof ProfileState['social']; label: string; placeholder: string }>
   >(
     () => [
@@ -331,108 +331,6 @@ const ProfileScreen: React.FC = () => {
       }
 
       sanitizedProfile.dateOfBirth = formatUkDate(parsedDob);
-    }
-
-    setSavingProfile(true);
-    try {
-      dispatch(updateProfile(sanitizedProfile));
-      await persistProfileToStorage(sanitizedProfile);
-      Alert.alert('Profile updated', 'Your profile details have been saved.');
-    } catch (error) {
-      console.error('Failed to save profile details', error);
-      Alert.alert(
-        'Save failed',
-        'We were unable to store your profile information. Please try again later.',
-      );
-    } finally {
-      setSavingProfile(false);
-    }
-  };
-
-  useEffect(() => {
-    let mounted = true;
-
-    const hydrateProfileDetails = async () => {
-      try {
-        const storedProfile = await loadStoredProfile();
-        if (!mounted) {
-          return;
-        }
-
-        if (storedProfile) {
-          dispatch(hydrateProfile(storedProfile));
-        }
-      } finally {
-        if (mounted) {
-          setLoadingProfileDetails(false);
-        }
-      }
-    };
-
-    hydrateProfileDetails();
-
-    return () => {
-      mounted = false;
-    };
-  }, [dispatch]);
-
-  useEffect(() => {
-    setProfileForm(profile);
-  }, [profile]);
-
-  const socialFields = useMemo<
-    Array<{ key: keyof ProfileState['social']; label: string; placeholder: string }>
-  >(
-    () => [
-      { key: 'twitter', label: 'Twitter', placeholder: '@username' },
-      { key: 'instagram', label: 'Instagram', placeholder: '@username' },
-      { key: 'facebook', label: 'Facebook', placeholder: 'https://facebook.com/username' },
-      { key: 'twitch', label: 'Twitch', placeholder: 'https://twitch.tv/username' },
-      { key: 'youtube', label: 'YouTube', placeholder: 'https://youtube.com/@channel' },
-      { key: 'website', label: 'Website', placeholder: 'https://yourdomain.com' },
-    ],
-    [],
-  );
-
-  const handleProfileFieldChange = (
-    key: 'fullName' | 'displayName' | 'dateOfBirth' | 'bio',
-  ) => (value: string) => {
-    setProfileForm((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
-  };
-
-  const handleAddressChange = (key: keyof ProfileState['address']) => (value: string) => {
-    setProfileForm((prev) => ({
-      ...prev,
-      address: {
-        ...prev.address,
-        [key]: value,
-      },
-    }));
-  };
-
-  const handleSocialChange = (key: keyof ProfileState['social']) => (value: string) => {
-    setProfileForm((prev) => ({
-      ...prev,
-      social: {
-        ...prev.social,
-        [key]: value,
-      },
-    }));
-  };
-
-  const handleSaveProfile = async () => {
-    if (savingProfile) {
-      return;
-    }
-
-    const sanitizedProfile = sanitizeProfile(profileForm);
-
-    if (sanitizedProfile.dateOfBirth && !/^\d{4}-\d{2}-\d{2}$/.test(sanitizedProfile.dateOfBirth)) {
-      Alert.alert('Invalid date of birth', 'Please use the YYYY-MM-DD format.');
-      return;
     }
 
     setSavingProfile(true);
@@ -883,7 +781,7 @@ const ProfileScreen: React.FC = () => {
 
               <Text style={styles.groupHeading}>Social links</Text>
 
-              {socialFields.map((field) => (
+              {socialFieldConfigs.map((field) => (
                 <View key={field.key} style={styles.fieldGroup}>
                   <Text style={styles.fieldLabel}>{field.label}</Text>
                   <TextInput
