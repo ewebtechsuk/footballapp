@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -13,6 +14,8 @@ import type { Product, ProductPurchase, PurchaseError } from 'react-native-iap';
 
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { creditWallet } from '../store/slices/walletSlice';
+import type { ProfileState } from '../store/slices/profileSlice';
+import { hydrateProfile, updateProfile } from '../store/slices/profileSlice';
 import type { CreditPackage } from '../config/purchases';
 import {
   PREMIUM_FEATURE_BENEFITS,
@@ -41,12 +44,40 @@ import {
   grantPremium,
   hydratePremium,
 } from '../store/slices/premiumSlice';
+import { loadStoredProfile, persistProfile as persistProfileToStorage } from '../services/profileStorage';
+
+const sanitizeProfile = (profile: ProfileState): ProfileState => ({
+  fullName: profile.fullName.trim(),
+  displayName: profile.displayName.trim(),
+  dateOfBirth: profile.dateOfBirth.trim(),
+  bio: profile.bio.trim(),
+  address: {
+    line1: profile.address.line1.trim(),
+    line2: profile.address.line2.trim(),
+    city: profile.address.city.trim(),
+    state: profile.address.state.trim(),
+    postalCode: profile.address.postalCode.trim(),
+    country: profile.address.country.trim(),
+  },
+  social: {
+    twitter: profile.social.twitter.trim(),
+    instagram: profile.social.instagram.trim(),
+    facebook: profile.social.facebook.trim(),
+    twitch: profile.social.twitch.trim(),
+    youtube: profile.social.youtube.trim(),
+    website: profile.social.website.trim(),
+  },
+});
 
 const ProfileScreen: React.FC = () => {
   const dispatch = useAppDispatch();
   const credits = useAppSelector((state) => state.wallet.credits);
   const premium = useAppSelector((state) => state.premium);
+  const profile = useAppSelector((state) => state.profile);
 
+  const [profileForm, setProfileForm] = useState<ProfileState>(profile);
+  const [loadingProfileDetails, setLoadingProfileDetails] = useState(true);
+  const [savingProfile, setSavingProfile] = useState(false);
   const [availablePackages, setAvailablePackages] = useState<CreditPackage[]>([]);
   const [loadingPackages, setLoadingPackages] = useState(true);
   const [processingPackageId, setProcessingPackageId] = useState<string | null>(null);
@@ -56,6 +87,108 @@ const ProfileScreen: React.FC = () => {
   const [premiumError, setPremiumError] = useState<string | null>(null);
   const [unlockingProductId, setUnlockingProductId] = useState<string | null>(null);
   const [restoringPremium, setRestoringPremium] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const hydrateProfileDetails = async () => {
+      try {
+        const storedProfile = await loadStoredProfile();
+        if (!mounted) {
+          return;
+        }
+
+        if (storedProfile) {
+          dispatch(hydrateProfile(storedProfile));
+        }
+      } finally {
+        if (mounted) {
+          setLoadingProfileDetails(false);
+        }
+      }
+    };
+
+    hydrateProfileDetails();
+
+    return () => {
+      mounted = false;
+    };
+  }, [dispatch]);
+
+  useEffect(() => {
+    setProfileForm(profile);
+  }, [profile]);
+
+  const socialFields = useMemo<
+    Array<{ key: keyof ProfileState['social']; label: string; placeholder: string }>
+  >(
+    () => [
+      { key: 'twitter', label: 'Twitter', placeholder: '@username' },
+      { key: 'instagram', label: 'Instagram', placeholder: '@username' },
+      { key: 'facebook', label: 'Facebook', placeholder: 'https://facebook.com/username' },
+      { key: 'twitch', label: 'Twitch', placeholder: 'https://twitch.tv/username' },
+      { key: 'youtube', label: 'YouTube', placeholder: 'https://youtube.com/@channel' },
+      { key: 'website', label: 'Website', placeholder: 'https://yourdomain.com' },
+    ],
+    [],
+  );
+
+  const handleProfileFieldChange = (
+    key: 'fullName' | 'displayName' | 'dateOfBirth' | 'bio',
+  ) => (value: string) => {
+    setProfileForm((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  const handleAddressChange = (key: keyof ProfileState['address']) => (value: string) => {
+    setProfileForm((prev) => ({
+      ...prev,
+      address: {
+        ...prev.address,
+        [key]: value,
+      },
+    }));
+  };
+
+  const handleSocialChange = (key: keyof ProfileState['social']) => (value: string) => {
+    setProfileForm((prev) => ({
+      ...prev,
+      social: {
+        ...prev.social,
+        [key]: value,
+      },
+    }));
+  };
+
+  const handleSaveProfile = async () => {
+    if (savingProfile) {
+      return;
+    }
+
+    const sanitizedProfile = sanitizeProfile(profileForm);
+
+    if (sanitizedProfile.dateOfBirth && !/^\d{4}-\d{2}-\d{2}$/.test(sanitizedProfile.dateOfBirth)) {
+      Alert.alert('Invalid date of birth', 'Please use the YYYY-MM-DD format.');
+      return;
+    }
+
+    setSavingProfile(true);
+    try {
+      dispatch(updateProfile(sanitizedProfile));
+      await persistProfileToStorage(sanitizedProfile);
+      Alert.alert('Profile updated', 'Your profile details have been saved.');
+    } catch (error) {
+      console.error('Failed to save profile details', error);
+      Alert.alert(
+        'Save failed',
+        'We were unable to store your profile information. Please try again later.',
+      );
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -325,6 +458,175 @@ const ProfileScreen: React.FC = () => {
           </Text>
         </View>
 
+        <View style={styles.profileCard}>
+          <Text style={styles.sectionTitle}>Account details</Text>
+          <Text style={styles.sectionSubtitle}>
+            Keep your personal information and social links up to date.
+          </Text>
+
+          {loadingProfileDetails ? (
+            <View style={styles.profileLoadingContainer}>
+              <ActivityIndicator color="#2563eb" />
+            </View>
+          ) : (
+            <>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Full name</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={profileForm.fullName}
+                  onChangeText={handleProfileFieldChange('fullName')}
+                  placeholder="Enter your full legal name"
+                  autoCapitalize="words"
+                  accessibilityLabel="Full name"
+                />
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Display name</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={profileForm.displayName}
+                  onChangeText={handleProfileFieldChange('displayName')}
+                  placeholder="Name shown to other managers"
+                  autoCapitalize="words"
+                  accessibilityLabel="Display name"
+                />
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Date of birth</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={profileForm.dateOfBirth}
+                  onChangeText={handleProfileFieldChange('dateOfBirth')}
+                  placeholder="YYYY-MM-DD"
+                  keyboardType="numbers-and-punctuation"
+                  accessibilityLabel="Date of birth"
+                />
+                <Text style={styles.fieldHelper}>Use the YYYY-MM-DD format.</Text>
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>About you</Text>
+                <TextInput
+                  style={[styles.textInput, styles.textArea]}
+                  value={profileForm.bio}
+                  onChangeText={handleProfileFieldChange('bio')}
+                  placeholder="Share a short bio to introduce yourself."
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                  accessibilityLabel="About you"
+                />
+              </View>
+
+              <Text style={styles.groupHeading}>Mailing address</Text>
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Address line 1</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={profileForm.address.line1}
+                  onChangeText={handleAddressChange('line1')}
+                  placeholder="Street address"
+                  autoCapitalize="words"
+                  accessibilityLabel="Address line 1"
+                />
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Address line 2</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={profileForm.address.line2}
+                  onChangeText={handleAddressChange('line2')}
+                  placeholder="Apartment, suite, etc. (optional)"
+                  autoCapitalize="words"
+                  accessibilityLabel="Address line 2"
+                />
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>City</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={profileForm.address.city}
+                  onChangeText={handleAddressChange('city')}
+                  placeholder="City"
+                  autoCapitalize="words"
+                  accessibilityLabel="City"
+                />
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>State / Province</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={profileForm.address.state}
+                  onChangeText={handleAddressChange('state')}
+                  placeholder="State or province"
+                  autoCapitalize="characters"
+                  accessibilityLabel="State or province"
+                />
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Postal code</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={profileForm.address.postalCode}
+                  onChangeText={handleAddressChange('postalCode')}
+                  placeholder="ZIP or postal code"
+                  autoCapitalize="characters"
+                  accessibilityLabel="Postal code"
+                />
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Country</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={profileForm.address.country}
+                  onChangeText={handleAddressChange('country')}
+                  placeholder="Country"
+                  autoCapitalize="words"
+                  accessibilityLabel="Country"
+                />
+              </View>
+
+              <Text style={styles.groupHeading}>Social links</Text>
+
+              {socialFields.map((field) => (
+                <View key={field.key} style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>{field.label}</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={profileForm.social[field.key]}
+                    onChangeText={handleSocialChange(field.key)}
+                    placeholder={field.placeholder}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    accessibilityLabel={`${field.label} link`}
+                  />
+                </View>
+              ))}
+
+              <TouchableOpacity
+                style={[styles.saveButton, savingProfile && styles.saveButtonDisabled]}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: savingProfile }}
+                disabled={savingProfile}
+                onPress={handleSaveProfile}
+              >
+                <Text style={styles.saveButtonText}>
+                  {savingProfile ? 'Saving…' : 'Save profile'}
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+
         <View style={styles.walletCard}>
           <Text style={styles.walletLabel}>Wallet credits</Text>
           <Text style={styles.walletValue}>{walletSummary.balance}</Text>
@@ -504,6 +806,65 @@ const styles = StyleSheet.create({
     color: '#475569',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  profileCard: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    padding: 20,
+    gap: 16,
+  },
+  profileLoadingContainer: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fieldGroup: {
+    gap: 8,
+  },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#0f172a',
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#cbd5f5',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: '#0f172a',
+    backgroundColor: '#fff',
+  },
+  textArea: {
+    minHeight: 96,
+    paddingTop: 12,
+    paddingBottom: 12,
+  },
+  fieldHelper: {
+    fontSize: 12,
+    color: '#64748b',
+  },
+  groupHeading: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  saveButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#2563eb',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 999,
+  },
+  saveButtonDisabled: {
+    opacity: 0.6,
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontWeight: '600',
   },
   walletCard: {
     backgroundColor: '#f3f4f6',
