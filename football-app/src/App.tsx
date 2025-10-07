@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Provider } from 'react-redux';
-import { Platform } from 'react-native';
+import { AppRegistry, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 
@@ -75,5 +75,25 @@ const App = () => {
     </Provider>
   );
 };
+
+if (Platform.OS === 'web') {
+  const applicationName = 'main';
+
+  if (!AppRegistry.getRunnable?.(applicationName)) {
+    AppRegistry.registerComponent(applicationName, () => App);
+  }
+
+  const rootTag =
+    typeof document !== 'undefined'
+      ? document.getElementById('root') ?? document.getElementById('main')
+      : null;
+
+  if (rootTag && !rootTag.hasChildNodes()) {
+    AppRegistry.runApplication(applicationName, {
+      initialProps: {},
+      rootTag,
+    });
+  }
+}
 
 export default App;
