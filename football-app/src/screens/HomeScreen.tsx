@@ -6,6 +6,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import BannerAdSlot from '../components/BannerAdSlot';
 import { defaultBannerSize, homeBannerAdUnitId } from '../config/ads';
 import { RootStackParamList } from '../types/navigation';
+import { useAppSelector } from '../store/hooks';
+import { selectCurrentUser } from '../store/slices/authSlice';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -14,10 +16,17 @@ interface HomeScreenProps {
 }
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
+  const currentUser = useAppSelector(selectCurrentUser);
+  const greetingName = currentUser?.fullName.split(' ')[0] ?? 'coach';
+  const welcomeMessage = currentUser
+    ? `Ready for another matchday, ${greetingName}?`
+    : 'Sign in to unlock the full football experience.';
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.content}>
         <Text style={styles.title}>Welcome to the Football App!</Text>
+        <Text style={styles.subtitle}>{welcomeMessage}</Text>
         <View style={styles.buttonGroup}>
           <View style={styles.buttonWrapper}>
             <Button title="Manage Teams" onPress={() => navigation.navigate('Team')} />
@@ -54,6 +63,12 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     marginBottom: 32,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#4b5563',
+    marginBottom: 24,
     textAlign: 'center',
   },
   buttonGroup: {
