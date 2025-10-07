@@ -76,4 +76,24 @@ const App = () => {
   );
 };
 
+if (Platform.OS === 'web') {
+  const applicationName = 'main';
+
+  if (!AppRegistry.getRunnable?.(applicationName)) {
+    AppRegistry.registerComponent(applicationName, () => App);
+  }
+
+  const rootTag =
+    typeof document !== 'undefined'
+      ? document.getElementById('root') ?? document.getElementById('main')
+      : null;
+
+  if (rootTag && !rootTag.hasChildNodes()) {
+    AppRegistry.runApplication(applicationName, {
+      initialProps: {},
+      rootTag,
+    });
+  }
+}
+
 export default App;
