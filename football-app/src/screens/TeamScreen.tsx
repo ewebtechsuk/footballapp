@@ -29,7 +29,11 @@ const TeamScreen: React.FC = () => {
           keyExtractor={(item: Team) => item.id}
           contentContainerStyle={styles.listContent}
           renderItem={({ item }: { item: Team }) => (
-            <TeamCard team={item} onRemove={() => dispatch(removeTeam(item.id))} />
+            <TeamCard
+              team={item}
+              onRemove={() => dispatch(removeTeam(item.id))}
+              onManage={() => navigation.navigate('ManageTeam', { teamId: item.id })}
+            />
           )}
           ListEmptyComponent={<Text style={styles.emptyText}>Create your first team to get started.</Text>}
         />

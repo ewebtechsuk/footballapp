@@ -24,6 +24,7 @@
       "react-native-iap": ["shims/react-native-iap"]
     }
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/**/*", "App.tsx", "index.ts"],
+  "exclude": ["node_modules", "dist"],
+  "extends": "expo/tsconfig.base"
 }
