@@ -2,7 +2,7 @@
   "name": "football-app",
   "version": "1.0.0",
   "description": "A football app for users to create and manage their own teams, enter tournaments, and compete for prizes.",
-  "main": "src/App.tsx",
+  "main": "index.ts",
   "private": true,
   "scripts": {
     "link:modules": "node scripts/link-node-modules.js",
