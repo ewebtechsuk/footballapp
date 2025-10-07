@@ -28,23 +28,22 @@ const CreateTeamScreen: React.FC = () => {
       return;
     }
 
+    const teamName = trimmedName;
+    const teamMembers = members;
+
     dispatch(
       addTeam({
         id: `${Date.now()}`,
-        name: trimmedName,
-        members,
+        name: teamName,
+        members: teamMembers,
       }),
     );
 
-    Alert.alert('Team created', `${trimmedName} has been added to your teams.`, [
-      {
-        text: 'OK',
-        onPress: () => navigation.navigate('Team'),
-      },
-    ]);
-
     setName('');
     setMembersText('');
+
+    navigation.navigate('Team');
+    Alert.alert('Team created', `${teamName} has been added to your teams.`);
   };
 
   return (
