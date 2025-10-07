@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Linking,
   ScrollView,
@@ -17,6 +18,11 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { TeamSettings, defaultTeamSettings, updateTeam } from '../store/slices/teamsSlice';
+import {
+  DiscoveredTeam,
+  TeamDiscoveryScope,
+  searchTeams,
+} from '../services/teamDiscovery';
 
 type ManageTeamRouteProp = RouteProp<RootStackParamList, 'ManageTeam'>;
 type ManageTeamNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ManageTeam'>;
@@ -35,6 +41,11 @@ const ManageTeamScreen: React.FC = () => {
   const [newMember, setNewMember] = useState('');
   const [settings, setSettings] = useState<TeamSettings>(defaultTeamSettings);
   const [usernameQuery, setUsernameQuery] = useState('');
+  const [teamSearchQuery, setTeamSearchQuery] = useState('');
+  const [searchScope, setSearchScope] = useState<TeamDiscoveryScope>('local');
+  const [isSearchingTeams, setIsSearchingTeams] = useState(false);
+  const [searchResults, setSearchResults] = useState<DiscoveredTeam[]>([]);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   useEffect(() => {
     if (team) {
@@ -97,6 +108,57 @@ const ManageTeamScreen: React.FC = () => {
 
     Alert.alert('Invite sent', `${trimmedQuery} has been invited to join ${teamName || 'your team'}.`);
     setUsernameQuery('');
+  };
+
+  const performTeamSearch = useCallback(
+    async (scope: TeamDiscoveryScope, query: string) => {
+      setIsSearchingTeams(true);
+      setSearchError(null);
+
+      try {
+        const results = await searchTeams(scope, query);
+        setSearchResults(results);
+
+        if (results.length === 0) {
+          setSearchError('No teams match your search yet. Try broadening the keywords.');
+        }
+      } catch (error) {
+        setSearchError('We could not load teams right now. Please try again shortly.');
+      } finally {
+        setIsSearchingTeams(false);
+      }
+    },
+    [],
+  );
+
+  const handleSearchTeams = useCallback(() => {
+    performTeamSearch(searchScope, teamSearchQuery.trim());
+  }, [performTeamSearch, searchScope, teamSearchQuery]);
+
+  const handleScopeChange = useCallback(
+    (nextScope: TeamDiscoveryScope) => {
+      if (nextScope === searchScope) {
+        return;
+      }
+
+      setSearchScope(nextScope);
+      performTeamSearch(nextScope, teamSearchQuery.trim());
+    },
+    [performTeamSearch, searchScope, teamSearchQuery],
+  );
+
+  useEffect(() => {
+    performTeamSearch('local', '');
+  }, [performTeamSearch]);
+
+  const handleChallengeTeam = (opponent: DiscoveredTeam) => {
+    const trimmedName = teamName.trim();
+    const displayTeamName = trimmedName.length > 0 ? trimmedName : 'your team';
+
+    Alert.alert(
+      'Challenge sent',
+      `We'll notify ${opponent.name} that ${displayTeamName} would like to arrange a match. We'll message you when they respond.`,
+    );
   };
 
   const openLink = useCallback(async (url: string, unavailableMessage: string) => {
@@ -289,6 +351,87 @@ const ManageTeamScreen: React.FC = () => {
         </View>
 
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Challenge other teams</Text>
+          <Text style={styles.sectionSubtitle}>
+            Search nearby clubs or take on opponents from across the country.
+          </Text>
+
+          <View style={styles.scopeToggle}>
+            <TouchableOpacity
+              style={[styles.scopeButton, searchScope === 'local' && styles.scopeButtonActive]}
+              onPress={() => handleScopeChange('local')}
+            >
+              <Text
+                style={[styles.scopeButtonText, searchScope === 'local' && styles.scopeButtonTextActive]}
+              >
+                Local area
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.scopeButton, searchScope === 'national' && styles.scopeButtonActive]}
+              onPress={() => handleScopeChange('national')}
+            >
+              <Text
+                style={[styles.scopeButtonText, searchScope === 'national' && styles.scopeButtonTextActive]}
+              >
+                National search
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.searchRow}>
+            <TextInput
+              value={teamSearchQuery}
+              onChangeText={setTeamSearchQuery}
+              placeholder="Search by team name, city or ranking"
+              style={[styles.input, styles.searchInput]}
+              returnKeyType="search"
+              onSubmitEditing={handleSearchTeams}
+            />
+            <TouchableOpacity style={styles.searchButton} onPress={handleSearchTeams}>
+              <Text style={styles.searchButtonText}>Search</Text>
+            </TouchableOpacity>
+          </View>
+
+          {isSearchingTeams ? (
+            <View style={styles.searchStatus}>
+              <ActivityIndicator size="small" color="#1d4ed8" />
+              <Text style={styles.searchStatusText}>Searching teams…</Text>
+            </View>
+          ) : (
+            <>
+              {searchError ? <Text style={styles.searchError}>{searchError}</Text> : null}
+              {searchResults.length > 0 ? (
+                <View style={styles.challengeList}>
+                  {searchResults.map((opponent) => (
+                    <View key={opponent.id} style={styles.challengeCard}>
+                      <View style={styles.challengeDetails}>
+                        <Text style={styles.challengeName}>{opponent.name}</Text>
+                        <Text style={styles.challengeLocation}>
+                          {opponent.city}, {opponent.region}
+                          {typeof opponent.distanceKm === 'number'
+                            ? ` • ${opponent.distanceKm}km away`
+                            : ''}
+                        </Text>
+                        <Text style={styles.challengeMeta}>{opponent.ranking}</Text>
+                        <Text style={styles.challengeMeta}>{opponent.preferredMatchDay}</Text>
+                        <Text style={styles.challengeForm}>Form: {opponent.recentForm}</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.challengeButton}
+                        onPress={() => handleChallengeTeam(opponent)}
+                      >
+                        <Text style={styles.challengeButtonText}>Challenge</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+            </>
+          )}
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Invite players</Text>
           <Text style={styles.sectionSubtitle}>
             Share your team with contacts or send invites directly from Football App.
@@ -389,6 +532,30 @@ const styles = StyleSheet.create({
   sectionSubtitle: {
     color: '#475569',
   },
+  scopeToggle: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  scopeButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#c7d2fe',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    backgroundColor: '#eef2ff',
+  },
+  scopeButtonActive: {
+    backgroundColor: '#1d4ed8',
+    borderColor: '#1d4ed8',
+  },
+  scopeButtonText: {
+    fontWeight: '600',
+    color: '#1e293b',
+  },
+  scopeButtonTextActive: {
+    color: '#fff',
+  },
   formField: {
     gap: 12,
   },
@@ -404,6 +571,80 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     backgroundColor: '#f8fafc',
+  },
+  searchInput: {
+    flex: 1,
+  },
+  searchRow: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+  },
+  searchButton: {
+    backgroundColor: '#1d4ed8',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  searchButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  searchStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  searchStatusText: {
+    color: '#475569',
+  },
+  searchError: {
+    color: '#ef4444',
+    fontWeight: '500',
+  },
+  challengeList: {
+    gap: 16,
+  },
+  challengeCard: {
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 16,
+  },
+  challengeDetails: {
+    flex: 1,
+    gap: 4,
+  },
+  challengeName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  challengeLocation: {
+    color: '#475569',
+  },
+  challengeMeta: {
+    color: '#1e293b',
+    fontSize: 13,
+  },
+  challengeForm: {
+    color: '#334155',
+    fontSize: 12,
+    fontStyle: 'italic',
+  },
+  challengeButton: {
+    alignSelf: 'center',
+    backgroundColor: '#22c55e',
+    borderRadius: 9999,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+  },
+  challengeButtonText: {
+    color: '#fff',
+    fontWeight: '600',
   },
   emptyState: {
     color: '#94a3b8',
