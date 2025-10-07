@@ -18,23 +18,38 @@ export interface ProfileSocialLinks {
   website: string;
 }
 
+export type ProfilePaymentMethod = 'card' | 'cash' | 'paypal' | 'bank_transfer';
+
+export const PROFILE_PAYMENT_METHODS: readonly ProfilePaymentMethod[] = [
+  'card',
+  'cash',
+  'paypal',
+  'bank_transfer',
+];
+
 export interface ProfileState {
   fullName: string;
   displayName: string;
+  mobileNumber: string;
   dateOfBirth: string;
   bio: string;
   address: ProfileAddress;
   social: ProfileSocialLinks;
+  paymentMethods: ProfilePaymentMethod[];
 }
 
-export type ProfileUpdate = Partial<Omit<ProfileState, 'address' | 'social'>> & {
+export type ProfileUpdate = Partial<
+  Omit<ProfileState, 'address' | 'social' | 'paymentMethods'>
+> & {
   address?: Partial<ProfileAddress>;
   social?: Partial<ProfileSocialLinks>;
+  paymentMethods?: ProfilePaymentMethod[];
 };
 
 const initialState: ProfileState = {
   fullName: '',
   displayName: '',
+  mobileNumber: '',
   dateOfBirth: '',
   bio: '',
   address: {
@@ -53,6 +68,7 @@ const initialState: ProfileState = {
     youtube: '',
     website: '',
   },
+  paymentMethods: [],
 };
 
 const mergeProfileState = (current: ProfileState, updates: ProfileUpdate): ProfileState => ({
@@ -66,6 +82,9 @@ const mergeProfileState = (current: ProfileState, updates: ProfileUpdate): Profi
     ...current.social,
     ...(updates.social ?? {}),
   },
+  paymentMethods: updates.paymentMethods
+    ? [...updates.paymentMethods]
+    : [...current.paymentMethods],
 });
 
 const profileSlice = createSlice({

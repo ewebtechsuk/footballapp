@@ -1,21 +1,32 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ActivityIndicator,
   Alert,
+  DatePickerAndroid,
+  Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
+  DatePickerIOS,
 } from 'react-native';
 import type { Product, ProductPurchase, PurchaseError } from 'react-native-iap';
 
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { creditWallet } from '../store/slices/walletSlice';
-import type { ProfileState } from '../store/slices/profileSlice';
-import { hydrateProfile, updateProfile } from '../store/slices/profileSlice';
+import type {
+  ProfilePaymentMethod,
+  ProfileState,
+} from '../store/slices/profileSlice';
+import {
+  PROFILE_PAYMENT_METHODS,
+  hydrateProfile,
+  updateProfile,
+} from '../store/slices/profileSlice';
 import type { CreditPackage } from '../config/purchases';
 import {
   PREMIUM_FEATURE_BENEFITS,
@@ -49,6 +60,7 @@ import { loadStoredProfile, persistProfile as persistProfileToStorage } from '..
 const sanitizeProfile = (profile: ProfileState): ProfileState => ({
   fullName: profile.fullName.trim(),
   displayName: profile.displayName.trim(),
+  mobileNumber: profile.mobileNumber.trim(),
   dateOfBirth: profile.dateOfBirth.trim(),
   bio: profile.bio.trim(),
   address: {
@@ -67,7 +79,45 @@ const sanitizeProfile = (profile: ProfileState): ProfileState => ({
     youtube: profile.social.youtube.trim(),
     website: profile.social.website.trim(),
   },
+  paymentMethods: profile.paymentMethods.filter(
+    (method, index, methods): method is ProfilePaymentMethod =>
+      PROFILE_PAYMENT_METHODS.includes(method) && methods.indexOf(method) === index,
+  ),
 });
+
+const parseUkDate = (value: string): Date | null => {
+  const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) {
+    return null;
+  }
+
+  const day = Number(match[1]);
+  const monthIndex = Number(match[2]) - 1;
+  const year = Number(match[3]);
+
+  const candidate = new Date(year, monthIndex, day);
+  if (
+    candidate.getFullYear() !== year ||
+    candidate.getMonth() !== monthIndex ||
+    candidate.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return candidate;
+};
+
+const formatUkDate = (date: Date): string => {
+  const day = `${date.getDate()}`.padStart(2, '0');
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const year = `${date.getFullYear()}`;
+  return `${day}/${month}/${year}`;
+};
+
+const defaultDob = () => {
+  const today = new Date();
+  return new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
+};
 
 const ProfileScreen: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -87,6 +137,217 @@ const ProfileScreen: React.FC = () => {
   const [premiumError, setPremiumError] = useState<string | null>(null);
   const [unlockingProductId, setUnlockingProductId] = useState<string | null>(null);
   const [restoringPremium, setRestoringPremium] = useState(false);
+  const [iosDobPickerVisible, setIosDobPickerVisible] = useState(false);
+  const [iosDobCandidate, setIosDobCandidate] = useState<Date>(defaultDob());
+
+  useEffect(() => {
+    let mounted = true;
+
+    const hydrateProfileDetails = async () => {
+      try {
+        const storedProfile = await loadStoredProfile();
+        if (!mounted) {
+          return;
+        }
+
+        if (storedProfile) {
+          dispatch(hydrateProfile(storedProfile));
+        }
+      } finally {
+        if (mounted) {
+          setLoadingProfileDetails(false);
+        }
+      }
+    };
+
+    hydrateProfileDetails();
+
+    return () => {
+      mounted = false;
+    };
+  }, [dispatch]);
+
+  useEffect(() => {
+    setProfileForm(profile);
+  }, [profile]);
+
+  const socialFields = useMemo<
+    Array<{ key: keyof ProfileState['social']; label: string; placeholder: string }>
+  >(
+    () => [
+      { key: 'twitter', label: 'Twitter', placeholder: '@username' },
+      { key: 'instagram', label: 'Instagram', placeholder: '@username' },
+      { key: 'facebook', label: 'Facebook', placeholder: 'https://facebook.com/username' },
+      { key: 'twitch', label: 'Twitch', placeholder: 'https://twitch.tv/username' },
+      { key: 'youtube', label: 'YouTube', placeholder: 'https://youtube.com/@channel' },
+      { key: 'website', label: 'Website', placeholder: 'https://yourdomain.com' },
+    ],
+    [],
+  );
+
+  const handleProfileFieldChange = (
+    key: 'fullName' | 'displayName' | 'mobileNumber' | 'dateOfBirth' | 'bio',
+  ) => (value: string) => {
+    setProfileForm((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  const handleAddressChange = (key: keyof ProfileState['address']) => (value: string) => {
+    setProfileForm((prev) => ({
+      ...prev,
+      address: {
+        ...prev.address,
+        [key]: value,
+      },
+    }));
+  };
+
+  const handleSocialChange = (key: keyof ProfileState['social']) => (value: string) => {
+    setProfileForm((prev) => ({
+      ...prev,
+      social: {
+        ...prev.social,
+        [key]: value,
+      },
+    }));
+  };
+
+  const paymentMethodOptions = useMemo(
+    () => [
+      { key: 'card' as ProfilePaymentMethod, label: 'Credit or debit card' },
+      { key: 'cash' as ProfilePaymentMethod, label: 'Cash' },
+      { key: 'paypal' as ProfilePaymentMethod, label: 'PayPal' },
+      { key: 'bank_transfer' as ProfilePaymentMethod, label: 'Bank transfer' },
+    ],
+    [],
+  );
+
+  const handleTogglePaymentMethod = useCallback((method: ProfilePaymentMethod) => {
+    setProfileForm((prev) => {
+      const isSelected = prev.paymentMethods.includes(method);
+      return {
+        ...prev,
+        paymentMethods: isSelected
+          ? prev.paymentMethods.filter((item) => item !== method)
+          : [...prev.paymentMethods, method],
+      };
+    });
+  }, []);
+
+  const openIosDobPicker = useCallback(
+    (date: Date) => {
+      setIosDobCandidate(date);
+      setIosDobPickerVisible(true);
+    },
+    [],
+  );
+
+  const handleOpenDobPicker = useCallback(async () => {
+    const currentDob = parseUkDate(profileForm.dateOfBirth) ?? defaultDob();
+    if (Platform.OS === 'android') {
+      try {
+        const result = await DatePickerAndroid.open({
+          date: currentDob,
+          mode: 'calendar',
+          maxDate: new Date(),
+        });
+
+        if (result.action !== DatePickerAndroid.dismissedAction) {
+          const { day, month, year } = result;
+          if (
+            typeof day === 'number' &&
+            typeof month === 'number' &&
+            typeof year === 'number'
+          ) {
+            const selectedDate = new Date(year, month, day);
+            setProfileForm((prev) => ({
+              ...prev,
+              dateOfBirth: formatUkDate(selectedDate),
+            }));
+          }
+        }
+      } catch (error) {
+        console.error('Failed to open date picker', error);
+        Alert.alert(
+          'Unable to open calendar',
+          'We could not open the date picker. Please try again later.',
+        );
+      }
+    } else {
+      openIosDobPicker(currentDob);
+    }
+  }, [profileForm.dateOfBirth, openIosDobPicker]);
+
+  const handleConfirmIosDob = useCallback(() => {
+    setProfileForm((prev) => ({
+      ...prev,
+      dateOfBirth: formatUkDate(iosDobCandidate),
+    }));
+    setIosDobPickerVisible(false);
+  }, [iosDobCandidate]);
+
+  const handleCancelIosDob = useCallback(() => {
+    setIosDobPickerVisible(false);
+  }, []);
+
+  const calculatedAge = useMemo(() => {
+    const parsedDob = parseUkDate(profileForm.dateOfBirth);
+    if (!parsedDob) {
+      return null;
+    }
+
+    const today = new Date();
+    let age = today.getFullYear() - parsedDob.getFullYear();
+    const monthDiff = today.getMonth() - parsedDob.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < parsedDob.getDate())) {
+      age -= 1;
+    }
+
+    return age >= 0 ? age : null;
+  }, [profileForm.dateOfBirth]);
+
+  const handleSaveProfile = async () => {
+    if (savingProfile) {
+      return;
+    }
+
+    const sanitizedProfile = sanitizeProfile(profileForm);
+    sanitizedProfile.paymentMethods = PROFILE_PAYMENT_METHODS.filter((method) =>
+      sanitizedProfile.paymentMethods.includes(method),
+    );
+
+    if (sanitizedProfile.dateOfBirth) {
+      const parsedDob = parseUkDate(sanitizedProfile.dateOfBirth);
+      if (!parsedDob) {
+        Alert.alert('Invalid date of birth', 'Please use the DD/MM/YYYY format.');
+        return;
+      }
+
+      if (parsedDob > new Date()) {
+        Alert.alert('Invalid date of birth', 'Date of birth cannot be in the future.');
+        return;
+      }
+
+      sanitizedProfile.dateOfBirth = formatUkDate(parsedDob);
+    }
+
+    setSavingProfile(true);
+    try {
+      dispatch(updateProfile(sanitizedProfile));
+      await persistProfileToStorage(sanitizedProfile);
+      Alert.alert('Profile updated', 'Your profile details have been saved.');
+    } catch (error) {
+      console.error('Failed to save profile details', error);
+      Alert.alert(
+        'Save failed',
+        'We were unable to store your profile information. Please try again later.',
+      );
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -495,16 +756,41 @@ const ProfileScreen: React.FC = () => {
               </View>
 
               <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Date of birth</Text>
+                <Text style={styles.fieldLabel}>Mobile number</Text>
                 <TextInput
                   style={styles.textInput}
-                  value={profileForm.dateOfBirth}
-                  onChangeText={handleProfileFieldChange('dateOfBirth')}
-                  placeholder="YYYY-MM-DD"
-                  keyboardType="numbers-and-punctuation"
-                  accessibilityLabel="Date of birth"
+                  value={profileForm.mobileNumber}
+                  onChangeText={handleProfileFieldChange('mobileNumber')}
+                  placeholder="e.g. +44 7123 456 789"
+                  keyboardType="phone-pad"
+                  accessibilityLabel="Mobile number"
                 />
-                <Text style={styles.fieldHelper}>Use the YYYY-MM-DD format.</Text>
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Date of birth</Text>
+                <TouchableOpacity
+                  style={styles.dobPickerButton}
+                  onPress={handleOpenDobPicker}
+                  accessibilityRole="button"
+                  accessibilityLabel="Select date of birth"
+                >
+                  <Text
+                    style={
+                      profileForm.dateOfBirth
+                        ? styles.dobPickerText
+                        : [styles.dobPickerText, styles.dobPickerPlaceholder]
+                    }
+                  >
+                    {profileForm.dateOfBirth || 'DD/MM/YYYY'}
+                  </Text>
+                </TouchableOpacity>
+                <Text style={styles.fieldHelper}>Use the UK format DD/MM/YYYY.</Text>
+                {typeof calculatedAge === 'number' && (
+                  <Text style={styles.ageHelper}>
+                    Player age: <Text style={styles.ageValue}>{calculatedAge}</Text>
+                  </Text>
+                )}
               </View>
 
               <View style={styles.fieldGroup}>
@@ -611,6 +897,40 @@ const ProfileScreen: React.FC = () => {
                   />
                 </View>
               ))}
+
+              <Text style={styles.groupHeading}>Payment methods</Text>
+
+              <View style={[styles.fieldGroup, styles.paymentGroup]}>
+                <Text style={styles.fieldHelper}>
+                  Select the payment types you accept for competition entry fees.
+                </Text>
+                <View style={styles.paymentOptionsContainer}>
+                  {paymentMethodOptions.map((option) => {
+                    const selected = profileForm.paymentMethods.includes(option.key);
+                    return (
+                      <TouchableOpacity
+                        key={option.key}
+                        style={[
+                          styles.paymentOption,
+                          selected && styles.paymentOptionSelected,
+                        ]}
+                        onPress={() => handleTogglePaymentMethod(option.key)}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: selected }}
+                      >
+                        <Text
+                          style={[
+                            styles.paymentOptionLabel,
+                            selected && styles.paymentOptionLabelSelected,
+                          ]}
+                        >
+                          {option.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
 
               <TouchableOpacity
                 style={[styles.saveButton, savingProfile && styles.saveButtonDisabled]}
@@ -779,6 +1099,42 @@ const ProfileScreen: React.FC = () => {
           premium unlocks and wallet top ups.
         </Text>
       </ScrollView>
+      {Platform.OS === 'ios' && (
+        <Modal
+          visible={iosDobPickerVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={handleCancelIosDob}
+        >
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>Select date of birth</Text>
+              <DatePickerIOS
+                date={iosDobCandidate}
+                mode="date"
+                maximumDate={new Date()}
+                onDateChange={setIosDobCandidate}
+              />
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalSecondaryButton]}
+                  onPress={handleCancelIosDob}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.modalSecondaryText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.modalButton}
+                  onPress={handleConfirmIosDob}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.modalPrimaryText}>Select</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 };
@@ -847,10 +1203,102 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#64748b',
   },
+  dobPickerButton: {
+    borderWidth: 1,
+    borderColor: '#cbd5f5',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+  },
+  dobPickerText: {
+    fontSize: 14,
+    color: '#0f172a',
+  },
+  dobPickerPlaceholder: {
+    color: '#94a3b8',
+  },
+  ageHelper: {
+    fontSize: 12,
+    color: '#0f172a',
+    fontWeight: '600',
+  },
+  ageValue: {
+    color: '#2563eb',
+  },
   groupHeading: {
     fontSize: 14,
     fontWeight: '700',
     color: '#0f172a',
+  },
+  paymentGroup: {
+    gap: 12,
+  },
+  paymentOptionsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  paymentOption: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#cbd5f5',
+    backgroundColor: '#fff',
+  },
+  paymentOptionSelected: {
+    borderColor: '#2563eb',
+    backgroundColor: '#e0ecff',
+  },
+  paymentOptionLabel: {
+    fontSize: 13,
+    color: '#0f172a',
+    fontWeight: '600',
+  },
+  paymentOptionLabelSelected: {
+    color: '#1d4ed8',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    width: '100%',
+    backgroundColor: '#fff',
+    padding: 24,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    gap: 16,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+  },
+  modalButton: {
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: '#2563eb',
+  },
+  modalSecondaryButton: {
+    backgroundColor: '#e2e8f0',
+  },
+  modalPrimaryText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  modalSecondaryText: {
+    color: '#1e293b',
+    fontWeight: '600',
   },
   saveButton: {
     alignSelf: 'flex-start',
