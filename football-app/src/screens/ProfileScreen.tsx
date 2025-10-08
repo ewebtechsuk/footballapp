@@ -208,17 +208,31 @@ const ProfileScreen: React.FC = () => {
       return;
     }
 
-    setProfileForm((prev) => {
-      if (prev.email && prev.email.trim().length > 0) {
-        return prev;
-      }
+    const normalisedAccountEmail = currentUser.email.trim().toLowerCase();
+    const profileEmail = profile.email.trim().toLowerCase();
 
-      return {
-        ...prev,
-        email: currentUser.email,
-      };
-    });
-  }, [currentUser?.email]);
+    if (profileEmail.length === 0) {
+      setProfileForm((prev) => {
+        const existingEmail = prev.email.trim().toLowerCase();
+        if (existingEmail.length > 0 && existingEmail !== normalisedAccountEmail) {
+          return prev;
+        }
+
+        if (existingEmail === normalisedAccountEmail) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          email: normalisedAccountEmail,
+        };
+      });
+
+      if (profileEmail !== normalisedAccountEmail) {
+        dispatch(updateProfile({ email: normalisedAccountEmail }));
+      }
+    }
+  }, [currentUser?.email, dispatch, profile.email]);
 
   useEffect(() => {
     let cancelled = false;
