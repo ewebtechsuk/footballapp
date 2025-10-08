@@ -25,12 +25,6 @@ type TeamScreenNavigationProp = CompositeNavigationProp<
   NativeStackNavigationProp<RootStackParamList>
 >;
 
-type CommunicationDigestEntry = {
-  title: string;
-  status: CommunicationStatus;
-  timestamp: string | null;
-};
-
 
 const TeamScreen: React.FC = () => {
   const dispatch = useAppDispatch();

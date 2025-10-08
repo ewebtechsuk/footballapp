@@ -93,33 +93,22 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   };
 
   return (
-    <AuthenticatedScreenContainer contentStyle={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        bounces
-      >
-        <View style={styles.heroCard}>
-          <Text style={styles.eyebrow}>Welcome to Football App</Text>
-          <Text style={styles.title}>{welcomeMessage}</Text>
-          <Text style={styles.helperText}>
-            Manage squads, schedule fixtures, and unlock insights that keep your club one step ahead.
-          </Text>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick actions</Text>
-          <View style={styles.quickActionGrid}>
-            {quickActions.map((action) => (
-              <TouchableOpacity
-                key={action.route}
-                onPress={() => navigation.navigate(action.route)}
-                style={styles.quickActionCard}
-              >
-                <Text style={styles.quickActionLabel}>{action.label}</Text>
-                <Text style={styles.quickActionDescription}>{action.description}</Text>
-              </TouchableOpacity>
-            ))}
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.content}>
+        <Text style={styles.title}>Welcome to the Football App!</Text>
+        <Text style={styles.subtitle}>{welcomeMessage}</Text>
+        <View style={styles.buttonGroup}>
+          <View style={styles.buttonWrapper}>
+            <Button title="Manage Teams" onPress={() => navigation.navigate('ManageTeams')} />
+          </View>
+          <View style={styles.buttonWrapper}>
+            <Button title="Create a Team" onPress={() => navigation.navigate('CreateTeam')} />
+          </View>
+          <View style={styles.buttonWrapper}>
+            <Button title="Join Tournaments" onPress={() => navigation.navigate('Tournaments')} />
+          </View>
+          <View style={styles.buttonWrapper}>
+            <Button title="Profile" onPress={() => navigation.navigate('Profile')} />
           </View>
         </View>
 
