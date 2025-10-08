@@ -172,6 +172,26 @@ const ProfileScreen: React.FC = () => {
     [profileForm, premium.entitled],
   );
 
+  const accountIdentifier = useMemo(() => {
+    if (!currentUser) {
+      return '';
+    }
+
+    if (currentUser.authProvider === 'mobile' && currentUser.phoneNumber) {
+      return `${currentUser.phoneNumber} · Mobile`;
+    }
+
+    if (currentUser.authProvider === 'google') {
+      return `${currentUser.email} · Google`;
+    }
+
+    if (currentUser.authProvider === 'facebook') {
+      return `${currentUser.email} · Facebook`;
+    }
+
+    return currentUser.email;
+  }, [currentUser]);
+
   useEffect(() => {
     let mounted = true;
 
@@ -818,7 +838,7 @@ const ProfileScreen: React.FC = () => {
             <View style={styles.accountHeader}>
               <View>
                 <Text style={styles.accountName}>{currentUser.fullName}</Text>
-                <Text style={styles.accountEmail}>{currentUser.email}</Text>
+                <Text style={styles.accountEmail}>{accountIdentifier}</Text>
               </View>
               <Text
                 style={[
