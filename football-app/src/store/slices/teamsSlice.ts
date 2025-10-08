@@ -100,17 +100,26 @@ const ensureTeamMembers = (members?: (string | TeamMember)[]): TeamMember[] => {
   return withSingleCaptain;
 };
 
+const applyDefaultSettings = (settings?: Partial<TeamSettings> | null): TeamSettings => ({
+  ...defaultTeamSettings,
+  ...(settings ?? {}),
+});
+
+const prepareTeam = (team: Team): Team => ({
+  ...team,
+  members: ensureTeamMembers(team.members),
+  settings: applyDefaultSettings(team.settings),
+});
+
 const teamsSlice = createSlice({
   name: 'teams',
   initialState,
   reducers: {
+    hydrateTeams: (state: TeamsState, action: PayloadAction<Team[]>) => {
+      state.teams = action.payload.map(prepareTeam);
+    },
     addTeam: (state: TeamsState, action: PayloadAction<Team>) => {
-      const teamWithDefaults: Team = {
-        ...action.payload,
-        members: ensureTeamMembers(action.payload.members),
-        settings: action.payload.settings ?? { ...defaultTeamSettings },
-      };
-
+      const teamWithDefaults = prepareTeam(action.payload);
       state.teams.push(teamWithDefaults);
     },
     removeTeam: (state: TeamsState, action: PayloadAction<string>) => {
@@ -162,15 +171,15 @@ const teamsSlice = createSlice({
       }
 
       if (settings) {
-        teamToUpdate.settings = {
+        teamToUpdate.settings = applyDefaultSettings({
           ...teamToUpdate.settings,
           ...settings,
-        };
+        });
       }
     },
   },
 });
 
-export const { addTeam, removeTeam, updateTeam } = teamsSlice.actions;
+export const { addTeam, removeTeam, updateTeam, hydrateTeams } = teamsSlice.actions;
 
 export default teamsSlice.reducer;

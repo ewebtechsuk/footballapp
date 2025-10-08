@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Provider } from 'react-redux';
@@ -21,6 +21,8 @@ import { hydratePremium } from './store/slices/premiumSlice';
 import { loadPremiumEntitlement } from './services/premiumStorage';
 import { initializeAuth, selectCurrentUser } from './store/slices/authSlice';
 import { initializeAdmin, selectAdminInitialized } from './store/slices/adminSlice';
+import { hydrateTeams } from './store/slices/teamsSlice';
+import { loadStoredTeams, persistTeams as persistTeamsToStorage } from './services/teamStorage';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -37,6 +39,57 @@ const PremiumBootstrapper = () => {
 
     hydrate();
   }, [dispatch]);
+
+  return null;
+};
+
+const TeamsBootstrapper = () => {
+  const dispatch = useAppDispatch();
+  const teams = useAppSelector((state) => state.teams.teams);
+  const hydratedRef = useRef(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const hydrateTeamsFromStorage = async () => {
+      try {
+        const storedTeams = await loadStoredTeams();
+        if (!mounted) {
+          return;
+        }
+
+        if (storedTeams) {
+          dispatch(hydrateTeams(storedTeams));
+        }
+      } finally {
+        if (mounted) {
+          hydratedRef.current = true;
+        }
+      }
+    };
+
+    hydrateTeamsFromStorage();
+
+    return () => {
+      mounted = false;
+    };
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (!hydratedRef.current) {
+      return;
+    }
+
+    const persist = async () => {
+      try {
+        await persistTeamsToStorage(teams);
+      } catch (error) {
+        console.warn('Unable to save teams to storage', error);
+      }
+    };
+
+    persist();
+  }, [teams]);
 
   return null;
 };
@@ -128,6 +181,7 @@ const App = () => {
     <Provider store={store}>
       <SafeAreaProvider>
         <PremiumBootstrapper />
+        <TeamsBootstrapper />
         <NavigationContainer>
           <RootNavigator />
         </NavigationContainer>

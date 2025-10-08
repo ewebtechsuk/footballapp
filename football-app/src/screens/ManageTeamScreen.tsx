@@ -64,8 +64,10 @@ const ManageTeamScreen: React.FC = () => {
   const navigation = useNavigation<ManageTeamNavigationProp>();
   const dispatch = useAppDispatch();
 
+  const teamId = route.params?.teamId ?? null;
+
   const team = useAppSelector((state) =>
-    state.teams.teams.find((currentTeam) => currentTeam.id === route.params.teamId),
+    teamId ? state.teams.teams.find((currentTeam) => currentTeam.id === teamId) : undefined,
   );
 
   const [teamName, setTeamName] = useState('');
@@ -85,7 +87,13 @@ const ManageTeamScreen: React.FC = () => {
     }
   }, [team]);
 
-  const invitationLink = useMemo(() => `https://football.app/team/${route.params.teamId}`, [route.params.teamId]);
+  const invitationLink = useMemo(() => {
+    if (!teamId) {
+      return 'https://football.app/team';
+    }
+
+    return `https://football.app/team/${teamId}`;
+  }, [teamId]);
   const invitationMessage = useMemo(() => {
     const trimmedName = teamName.trim();
     const displayName = trimmedName.length > 0 ? trimmedName : 'my Football App squad';
@@ -367,9 +375,14 @@ const ManageTeamScreen: React.FC = () => {
           isCaptain: index === 0,
         }));
 
+    if (!teamId) {
+      Alert.alert('Team unavailable', 'We could not determine which team to update.');
+      return;
+    }
+
     dispatch(
       updateTeam({
-        id: route.params.teamId,
+        id: teamId,
         name: trimmedName,
         members: ensuredCaptainMembers,
         settings,
@@ -379,6 +392,19 @@ const ManageTeamScreen: React.FC = () => {
     Alert.alert('Team updated', `${trimmedName} has been updated.`);
     navigation.goBack();
   };
+
+  if (!teamId) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.content}>
+          <Text style={styles.title}>Team unavailable</Text>
+          <Text style={styles.subtitle}>
+            We could not determine which team you wanted to manage. Please go back and try again.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!team) {
     return (
