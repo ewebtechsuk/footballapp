@@ -3,20 +3,21 @@ import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'rea
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { CompositeNavigationProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import AuthenticatedScreenContainer from '../components/AuthenticatedScreenContainer';
 import BannerAdSlot from '../components/BannerAdSlot';
 import { defaultBannerSize, homeBannerAdUnitId } from '../config/ads';
-import { AuthenticatedTabParamList, RootStackParamList } from '../types/navigation';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { selectCurrentUser } from '../store/slices/authSlice';
 import {
   Challenge,
   claimChallengeReward,
   markChallengeCompleted,
   selectActiveChallenges,
 } from '../store/slices/challengesSlice';
+import { selectCurrentUser } from '../store/slices/authSlice';
 import { creditWallet } from '../store/slices/walletSlice';
+import { AuthenticatedTabParamList, RootStackParamList } from '../types/navigation';
 
 type HomeScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<AuthenticatedTabParamList, 'Dashboard'>,
@@ -90,6 +91,39 @@ const designOpportunities = [
   'Bring in a dark mode palette that echoes stadium floodlights for late-night strategising.',
 ];
 
+const formatTimeUntil = (isoDate: string): string => {
+  const expiryDate = new Date(isoDate);
+  if (Number.isNaN(expiryDate.getTime())) {
+    return 'No expiry date';
+  }
+
+  const diffMs = expiryDate.getTime() - Date.now();
+  if (diffMs <= 0) {
+    return 'Expired';
+  }
+
+  const minutes = Math.ceil(diffMs / (1000 * 60));
+  if (minutes < 60) {
+    return `Due in ${minutes} min${minutes === 1 ? '' : 's'}`;
+  }
+
+  const hours = Math.ceil(diffMs / (1000 * 60 * 60));
+  if (hours < 24) {
+    return `Due in ${hours} hr${hours === 1 ? '' : 's'}`;
+  }
+
+  const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  return `Due in ${days} day${days === 1 ? '' : 's'}`;
+};
+
+const describeReward = (reward: Challenge['reward']): string => {
+  if (reward.type === 'credits') {
+    return `${reward.amount} credits`;
+  }
+
+  return `${reward.name} badge`;
+};
+
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const dispatch = useAppDispatch();
   const currentUser = useAppSelector(selectCurrentUser);
@@ -160,6 +194,14 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     },
     [challenges, dispatch],
   );
+
+  const handleQuickActionPress = (action: QuickAction) => {
+    if (action.action.type === 'tab') {
+      navigation.navigate(action.action.route);
+    } else {
+      navigation.navigate(action.action.route);
+    }
+  };
 
   return (
     <AuthenticatedScreenContainer style={styles.container}>
@@ -266,8 +308,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
+    flex: 1,
     backgroundColor: '#eef2ff',
+  },
+  content: {
+    flex: 1,
   },
   scrollContent: {
     paddingVertical: 24,
@@ -287,7 +333,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#bfdbfe',
   },
-  title: {
+  heroTitle: {
     fontSize: 26,
     fontWeight: '700',
     color: '#ffffff',
@@ -338,6 +384,68 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#1d4ed8',
   },
+  challengeList: {
+    gap: 12,
+  },
+  challengeCard: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    gap: 12,
+  },
+  challengeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  challengeTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1f2937',
+  },
+  challengeStatus: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#2563eb',
+  },
+  challengeCopy: {
+    fontSize: 14,
+    color: '#334155',
+    lineHeight: 20,
+  },
+  challengeMeta: {
+    fontSize: 12,
+    color: '#64748b',
+  },
+  challengeActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  challengeButton: {
+    backgroundColor: '#1e3a8a',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+  },
+  challengeButtonLabel: {
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+  claimButton: {
+    backgroundColor: '#22c55e',
+  },
+  claimButtonLabel: {
+    color: '#052e16',
+  },
+  claimedLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#16a34a',
+    alignSelf: 'center',
+  },
   featureList: {
     gap: 12,
   },
@@ -373,79 +481,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#1f2937',
     lineHeight: 18,
-  },
-  challengeSection: {
-    marginTop: 32,
-    width: '100%',
-    gap: 16,
-    backgroundColor: '#fef3c7',
-    borderRadius: 20,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#fcd34d',
-  },
-  challengeHeading: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#92400e',
-  },
-  challengeSubtitle: {
-    color: '#b45309',
-    fontSize: 13,
-  },
-  challengeCard: {
-    backgroundColor: '#fff7ed',
-    borderRadius: 16,
-    padding: 16,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: '#fed7aa',
-  },
-  challengeDetails: {
-    gap: 6,
-  },
-  challengeTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#9a3412',
-  },
-  challengeDescription: {
-    color: '#7c2d12',
-    fontSize: 13,
-  },
-  challengeMeta: {
-    fontSize: 12,
-    color: '#b45309',
-  },
-  challengeActions: {
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'center',
-    flexWrap: 'wrap',
-  },
-  challengeButton: {
-    borderRadius: 999,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-  },
-  challengePrimary: {
-    backgroundColor: '#f97316',
-  },
-  challengeButtonText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 13,
-    textTransform: 'uppercase',
-  },
-  claimedBadge: {
-    backgroundColor: '#bbf7d0',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-  },
-  claimedBadgeText: {
-    color: '#166534',
-    fontWeight: '700',
   },
 });
 
