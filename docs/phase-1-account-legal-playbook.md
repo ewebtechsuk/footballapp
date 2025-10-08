@@ -17,7 +17,7 @@ This playbook expands the high-level Phase 1 items from the publishing action pl
    - [ ] Store sanitized evidence in `docs/publishing/evidence/accounts/`.
 2. **Document ownership & billing**
    - [ ] Record the primary owners, backup admins, and billing contacts for each store.
-   - [ ] Note renewal dates (Apple yearly fee, Play Console one-time) and add reminders to the team calendar.
+   - [ ] Note renewal dates (Apple yearly US\$99 USD fee, Google Play one-time US\$25 USD fee) and add reminders to the team calendar.
    - [ ] Save a `ACCOUNTS.md` summary in `docs/publishing`.
 3. **Set up access management**
    - [ ] Audit user roles, removing unused accounts and applying least-privilege roles.

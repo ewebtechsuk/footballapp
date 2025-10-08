@@ -4,8 +4,8 @@ This checklist summarizes the key steps required to launch the application on bo
 
 ## Prerequisites
 - **Developer accounts**
-  - Enroll in the [Google Play Console](https://play.google.com/console) with a one-time registration fee.
-  - Enroll in the [Apple Developer Program](https://developer.apple.com/programs/) and maintain the annual membership.
+  - Enroll in the [Google Play Console](https://play.google.com/console) with a one-time US\$25 USD registration fee (or the local-currency equivalent collected by Google).
+  - Enroll in the [Apple Developer Program](https://developer.apple.com/programs/) and maintain the annual US\$99 USD membership (waived for approved nonprofits, schools, or governments).
 - **App assets ready**
   - Final app name, description, keywords, and privacy policy URL.
   - High-resolution icon, feature graphics, and screenshots that meet the store guidelines for all targeted devices.
