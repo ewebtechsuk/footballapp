@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 
 import type { Team } from '../store/slices/teamsSlice';
+import type { CommunicationStatus } from '../store/slices/communicationsSlice';
 
 interface TeamRecordSummary {
   wins: number;
@@ -15,6 +16,11 @@ interface TeamCardProps {
   onManage: () => void;
   record?: TeamRecordSummary;
   nextFixtureLabel?: string;
+  latestCommunication?: {
+    title: string;
+    status: CommunicationStatus;
+    timestamp: string | null;
+  };
 }
 
 
@@ -24,8 +30,23 @@ const TeamCard: React.FC<TeamCardProps> = ({
   onManage,
   record,
   nextFixtureLabel,
+  latestCommunication,
 }) => {
   const hasRecord = record && (record.wins > 0 || record.draws > 0 || record.losses > 0);
+  const communicationTimestampLabel = latestCommunication?.timestamp
+    ? new Date(latestCommunication.timestamp).toLocaleString(undefined, {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : null;
+  const communicationHeading = latestCommunication
+    ? latestCommunication.status === 'scheduled'
+      ? 'Next update'
+      : 'Latest update'
+    : null;
 
   return (
     <View style={styles.card}>
@@ -45,6 +66,18 @@ const TeamCard: React.FC<TeamCardProps> = ({
         <View style={styles.fixtureRow}>
           <Text style={styles.fixtureLabel}>Next kickoff</Text>
           <Text style={styles.fixtureValue}>{nextFixtureLabel}</Text>
+        </View>
+      ) : null}
+
+      {latestCommunication ? (
+        <View style={styles.communicationRow}>
+          {communicationHeading ? (
+            <Text style={styles.communicationLabel}>{communicationHeading}</Text>
+          ) : null}
+          <Text style={styles.communicationTitle}>{latestCommunication.title}</Text>
+          {communicationTimestampLabel ? (
+            <Text style={styles.communicationMeta}>{communicationTimestampLabel}</Text>
+          ) : null}
         </View>
       ) : null}
 
@@ -113,6 +146,29 @@ const styles = StyleSheet.create({
   fixtureValue: {
     fontSize: 14,
     color: '#1e293b',
+  },
+  communicationRow: {
+    marginTop: 12,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 10,
+    padding: 12,
+    gap: 4,
+  },
+  communicationLabel: {
+    fontSize: 12,
+    color: '#0369a1',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  communicationTitle: {
+    fontSize: 14,
+    color: '#0f172a',
+    fontWeight: '600',
+  },
+  communicationMeta: {
+    fontSize: 12,
+    color: '#475569',
   },
   actions: {
     flexDirection: 'row',
