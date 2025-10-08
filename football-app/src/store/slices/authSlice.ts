@@ -24,6 +24,7 @@ const seedUsers = (): StoredUserAccount[] => [
     marketingOptIn: false,
     status: 'active',
     createdAt: new Date('2023-01-15T09:00:00Z').toISOString(),
+    biometricEnabled: false,
   },
   {
     id: 'fan-jane',
@@ -34,6 +35,7 @@ const seedUsers = (): StoredUserAccount[] => [
     marketingOptIn: true,
     status: 'active',
     createdAt: new Date('2023-02-02T13:30:00Z').toISOString(),
+    biometricEnabled: false,
   },
 ];
 
@@ -55,7 +57,10 @@ export const initializeAuth = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const storedUsers = await loadStoredUsers();
-      let users = storedUsers ?? [];
+      let users = (storedUsers ?? []).map((user) => ({
+        ...user,
+        biometricEnabled: user.biometricEnabled ?? false,
+      }));
 
       if (!users.length) {
         users = seedUsers();
@@ -117,6 +122,7 @@ export const registerUser = createAsyncThunk<
     marketingOptIn,
     status: 'active',
     createdAt: new Date().toISOString(),
+    biometricEnabled: false,
   };
 
   const updatedUsers = [...auth.users, newUser];
@@ -226,6 +232,59 @@ export const updateMarketingPreference = createAsyncThunk<
   },
 );
 
+export const updateBiometricPreference = createAsyncThunk<
+  { userId: string; biometricEnabled: boolean },
+  { userId: string; biometricEnabled: boolean },
+  { state: RootState; rejectValue: string }
+>(
+  'auth/updateBiometricPreference',
+  async ({ userId, biometricEnabled }, { getState, rejectWithValue }) => {
+    const { auth } = getState();
+    const targetUser = auth.users.find((user) => user.id === userId);
+
+    if (!targetUser) {
+      return rejectWithValue('User not found');
+    }
+
+    const updatedUsers = auth.users.map((user) =>
+      user.id === userId
+        ? {
+            ...user,
+            biometricEnabled,
+          }
+        : user,
+    );
+
+    await persistUsers(updatedUsers);
+
+    return { userId, biometricEnabled };
+  },
+);
+
+export const loginWithBiometrics = createAsyncThunk<
+  StoredUserAccount,
+  { userId: string },
+  { state: RootState; rejectValue: string }
+>('auth/loginWithBiometrics', async ({ userId }, { getState, rejectWithValue }) => {
+  const { auth } = getState();
+  const targetUser = auth.users.find((user) => user.id === userId);
+
+  if (!targetUser) {
+    return rejectWithValue('User not found');
+  }
+
+  if (!targetUser.biometricEnabled) {
+    return rejectWithValue('Biometric login is not enabled for this account');
+  }
+
+  if (targetUser.status === 'suspended') {
+    return rejectWithValue('This account has been suspended');
+  }
+
+  await persistCurrentUserId(targetUser.id);
+  return targetUser;
+});
+
 const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -276,6 +335,22 @@ const authSlice = createSlice({
         state.loading = false;
         state.error = (action.payload as string) ?? action.error.message ?? null;
       })
+      .addCase(loginWithBiometrics.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(loginWithBiometrics.fulfilled, (state, action) => {
+        const existingIndex = state.users.findIndex((user) => user.id === action.payload.id);
+        if (existingIndex !== -1) {
+          state.users[existingIndex] = action.payload;
+        }
+        state.currentUserId = action.payload.id;
+        state.loading = false;
+      })
+      .addCase(loginWithBiometrics.rejected, (state, action) => {
+        state.loading = false;
+        state.error = (action.payload as string) ?? action.error.message ?? null;
+      })
       .addCase(logoutUser.fulfilled, (state) => {
         state.currentUserId = null;
       })
@@ -299,6 +374,15 @@ const authSlice = createSlice({
       })
       .addCase(updateMarketingPreference.rejected, (state, action) => {
         state.error = (action.payload as string) ?? action.error.message ?? null;
+      })
+      .addCase(updateBiometricPreference.fulfilled, (state, action) => {
+        const target = state.users.find((user) => user.id === action.payload.userId);
+        if (target) {
+          target.biometricEnabled = action.payload.biometricEnabled;
+        }
+      })
+      .addCase(updateBiometricPreference.rejected, (state, action) => {
+        state.error = (action.payload as string) ?? action.error.message ?? null;
       });
   },
 });
@@ -319,4 +403,7 @@ export const selectCurrentUser = (state: RootState): UserAccount | null => {
   const match = state.auth.users.find((user) => user.id === state.auth.currentUserId);
   return match ? sanitizeUser(match) : null;
 };
+
+export const selectBiometricEnabledUsers = (state: RootState): UserAccount[] =>
+  state.auth.users.filter((user) => user.biometricEnabled).map(sanitizeUser);
 
