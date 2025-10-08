@@ -17,45 +17,83 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { RootStackParamList } from '../types/navigation';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { TeamSettings, defaultTeamSettings, updateTeam } from '../store/slices/teamsSlice';
 import {
-  DiscoveredTeam,
-  TeamDiscoveryScope,
-  searchTeams,
-} from '../services/teamDiscovery';
+  FormationPositionKey,
+  TeamMember,
+  TeamRole,
+  TeamSettings,
+  defaultTeamSettings,
+  updateTeam,
+} from '../store/slices/teamsSlice';
+import PitchFormation from '../components/PitchFormation';
 
 type ManageTeamRouteProp = RouteProp<RootStackParamList, 'ManageTeam'>;
 type ManageTeamNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ManageTeam'>;
+
+const TEAM_ROLES: TeamRole[] = ['Goalkeeper', 'Defender', 'Midfielder', 'Forward', 'Substitute'];
+
+const determineDefaultRole = (index: number): TeamRole => {
+  if (index === 0) {
+    return 'Goalkeeper';
+  }
+
+  if (index <= 4) {
+    return 'Defender';
+  }
+
+  if (index <= 8) {
+    return 'Midfielder';
+  }
+
+  return 'Forward';
+};
+
+const createTeamMemberFromName = (name: string, existingMembers: TeamMember[]): TeamMember => {
+  const index = existingMembers.length;
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    name,
+    role: determineDefaultRole(index),
+    position: null,
+    isCaptain: existingMembers.length === 0,
+  };
+};
 
 const ManageTeamScreen: React.FC = () => {
   const route = useRoute<ManageTeamRouteProp>();
   const navigation = useNavigation<ManageTeamNavigationProp>();
   const dispatch = useAppDispatch();
 
+  const teamId = route.params?.teamId ?? null;
+
   const team = useAppSelector((state) =>
-    state.teams.teams.find((currentTeam) => currentTeam.id === route.params.teamId),
+    teamId ? state.teams.teams.find((currentTeam) => currentTeam.id === teamId) : undefined,
   );
 
   const [teamName, setTeamName] = useState('');
-  const [members, setMembers] = useState<string[]>([]);
+  const [members, setMembers] = useState<TeamMember[]>([]);
   const [newMember, setNewMember] = useState('');
   const [settings, setSettings] = useState<TeamSettings>(defaultTeamSettings);
   const [usernameQuery, setUsernameQuery] = useState('');
-  const [teamSearchQuery, setTeamSearchQuery] = useState('');
-  const [searchScope, setSearchScope] = useState<TeamDiscoveryScope>('local');
-  const [isSearchingTeams, setIsSearchingTeams] = useState(false);
-  const [searchResults, setSearchResults] = useState<DiscoveredTeam[]>([]);
-  const [searchError, setSearchError] = useState<string | null>(null);
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
 
   useEffect(() => {
     if (team) {
       setTeamName(team.name);
       setMembers(team.members);
       setSettings(team.settings);
+      const captain = team.members.find((member) => member.isCaptain);
+      setSelectedMemberId(captain?.id ?? team.members[0]?.id ?? null);
     }
   }, [team]);
 
-  const invitationLink = useMemo(() => `https://football.app/team/${route.params.teamId}`, [route.params.teamId]);
+  const invitationLink = useMemo(() => {
+    if (!teamId) {
+      return 'https://football.app/team';
+    }
+
+    return `https://football.app/team/${teamId}`;
+  }, [teamId]);
   const invitationMessage = useMemo(() => {
     const trimmedName = teamName.trim();
     const displayName = trimmedName.length > 0 ? trimmedName : 'my Football App squad';
@@ -78,17 +116,123 @@ const ManageTeamScreen: React.FC = () => {
       return;
     }
 
-    if (members.some((member) => member.toLowerCase() === trimmedMember.toLowerCase())) {
+    if (members.some((member) => member.name.toLowerCase() === trimmedMember.toLowerCase())) {
       Alert.alert('Already added', `${trimmedMember} is already part of your roster.`);
       return;
     }
 
-    setMembers((previousMembers) => [...previousMembers, trimmedMember]);
+    setMembers((previousMembers) => {
+      const cleanedName = trimmedMember;
+      const newMemberEntry = createTeamMemberFromName(cleanedName, previousMembers);
+
+      const updatedMembers = [...previousMembers.map((member) => ({ ...member })), newMemberEntry];
+
+      setSelectedMemberId(newMemberEntry.id);
+
+      return updatedMembers;
+    });
     setNewMember('');
   };
 
-  const handleRemoveMember = (index: number) => {
-    setMembers((previousMembers) => previousMembers.filter((_, memberIndex) => memberIndex !== index));
+  const handleRemoveMember = (memberId: string) => {
+    setMembers((previousMembers) => {
+      const filteredMembers = previousMembers
+        .filter((member) => member.id !== memberId)
+        .map((member) => ({ ...member }));
+
+      if (filteredMembers.length > 0 && !filteredMembers.some((member) => member.isCaptain)) {
+        filteredMembers.forEach((member, index) => {
+          filteredMembers[index] = { ...member, isCaptain: index === 0 };
+        });
+        setSelectedMemberId((currentSelected) =>
+          currentSelected === memberId ? filteredMembers[0].id : currentSelected,
+        );
+      } else if (filteredMembers.length === 0) {
+        setSelectedMemberId(null);
+      } else if (filteredMembers.some((member) => member.isCaptain)) {
+        const captain = filteredMembers.find((member) => member.isCaptain);
+        setSelectedMemberId((currentSelected) =>
+          currentSelected === memberId ? captain?.id ?? filteredMembers[0].id : currentSelected,
+        );
+      }
+
+      return filteredMembers;
+    });
+  };
+
+  const handleSelectMember = (memberId: string) => {
+    setSelectedMemberId((currentSelected) => (currentSelected === memberId ? null : memberId));
+  };
+
+  const handleCycleRole = (memberId: string) => {
+    setMembers((previousMembers) =>
+      previousMembers.map((member) => {
+        if (member.id !== memberId) {
+          return member;
+        }
+
+        const currentIndex = Math.max(0, TEAM_ROLES.indexOf(member.role));
+        const nextRole = TEAM_ROLES[(currentIndex + 1) % TEAM_ROLES.length];
+
+        return { ...member, role: nextRole };
+      }),
+    );
+  };
+
+  const handleSetCaptain = (memberId: string) => {
+    setMembers((previousMembers) =>
+      previousMembers.map((member) => ({
+        ...member,
+        isCaptain: member.id === memberId,
+      })),
+    );
+    setSelectedMemberId(memberId);
+  };
+
+  const handleClearPosition = (memberId: string) => {
+    setMembers((previousMembers) =>
+      previousMembers.map((member) =>
+        member.id === memberId ? { ...member, position: null } : member,
+      ),
+    );
+  };
+
+  const handleSpotPress = (positionKey: FormationPositionKey, occupantId: string | null) => {
+    if (!selectedMemberId) {
+      if (occupantId) {
+        setMembers((previousMembers) =>
+          previousMembers.map((member) =>
+            member.id === occupantId ? { ...member, position: null } : member,
+          ),
+        );
+      } else {
+        Alert.alert('Select a player', 'Choose a player from the roster before assigning a position.');
+      }
+      return;
+    }
+
+    if (occupantId && occupantId === selectedMemberId) {
+      setMembers((previousMembers) =>
+        previousMembers.map((member) =>
+          member.id === selectedMemberId ? { ...member, position: null } : member,
+        ),
+      );
+      return;
+    }
+
+    setMembers((previousMembers) =>
+      previousMembers.map((member) => {
+        if (member.id === selectedMemberId) {
+          return { ...member, position: positionKey };
+        }
+
+        if (member.position === positionKey) {
+          return { ...member, position: null };
+        }
+
+        return member;
+      }),
+    );
   };
 
   const handleInviteFromContacts = () => {
@@ -218,14 +362,29 @@ const ManageTeamScreen: React.FC = () => {
     }
 
     const cleanedMembers = members
-      .map((member) => member.trim())
-      .filter((member) => member.length > 0);
+      .map((member) => ({
+        ...member,
+        name: member.name.trim(),
+      }))
+      .filter((member) => member.name.length > 0);
+
+    const ensuredCaptainMembers = cleanedMembers.some((member) => member.isCaptain)
+      ? cleanedMembers
+      : cleanedMembers.map((member, index) => ({
+          ...member,
+          isCaptain: index === 0,
+        }));
+
+    if (!teamId) {
+      Alert.alert('Team unavailable', 'We could not determine which team to update.');
+      return;
+    }
 
     dispatch(
       updateTeam({
-        id: route.params.teamId,
+        id: teamId,
         name: trimmedName,
-        members: cleanedMembers,
+        members: ensuredCaptainMembers,
         settings,
       }),
     );
@@ -233,6 +392,19 @@ const ManageTeamScreen: React.FC = () => {
     Alert.alert('Team updated', `${trimmedName} has been updated.`);
     navigation.goBack();
   };
+
+  if (!teamId) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.content}>
+          <Text style={styles.title}>Team unavailable</Text>
+          <Text style={styles.subtitle}>
+            We could not determine which team you wanted to manage. Please go back and try again.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!team) {
     return (
@@ -267,20 +439,71 @@ const ManageTeamScreen: React.FC = () => {
             {members.length === 0 ? (
               <Text style={styles.emptyState}>No members yet. Start by inviting your first player.</Text>
             ) : (
-              members.map((member, index) => (
-                <View key={`${member}-${index}`} style={styles.memberRow}>
-                  <Text style={styles.memberName}>{member}</Text>
-                  <TouchableOpacity onPress={() => handleRemoveMember(index)}>
-                    <Text style={styles.removeMemberText}>Remove</Text>
-                  </TouchableOpacity>
-                </View>
-              ))
-            )}
-          </View>
+              <View style={styles.memberList}>
+                {members.map((member) => (
+                  <View
+                    key={member.id}
+                    style={[styles.memberCard, selectedMemberId === member.id && styles.memberCardSelected]}
+                  >
+                    <TouchableOpacity
+                      style={styles.memberCardBody}
+                      onPress={() => handleSelectMember(member.id)}
+                    >
+                      <View style={styles.memberHeaderRow}>
+                        <Text style={styles.memberName}>{member.name}</Text>
+                        {member.isCaptain ? <Text style={styles.captainBadge}>Captain</Text> : null}
+                      </View>
+                      <Text style={styles.memberPositionText}>
+                        {member.position ? `Pitch position: ${member.position}` : 'Not placed on the pitch yet'}
+                      </Text>
+                      <Text style={styles.memberSelectHint}>
+                        {selectedMemberId === member.id
+                          ? 'Selected for pitch placement'
+                          : 'Tap to select and place on the pitch'}
+                      </Text>
+                    </TouchableOpacity>
 
-          <View style={styles.addMemberRow}>
-            <TextInput
-              value={newMember}
+                    <View style={styles.memberFooterRow}>
+                      <TouchableOpacity
+                        style={styles.roleButton}
+                        onPress={() => handleCycleRole(member.id)}
+                      >
+                        <Text style={styles.roleButtonText}>{member.role}</Text>
+                        <Text style={styles.roleButtonHint}>Change role</Text>
+                      </TouchableOpacity>
+
+                      <View style={styles.memberActionGroup}>
+                        <TouchableOpacity
+                          style={styles.secondaryAction}
+                          onPress={() => handleClearPosition(member.id)}
+                        >
+                          <Text style={styles.secondaryActionText}>Clear spot</Text>
+                        </TouchableOpacity>
+                        {member.isCaptain ? null : (
+                          <TouchableOpacity
+                            style={styles.secondaryAction}
+                            onPress={() => handleSetCaptain(member.id)}
+                          >
+                            <Text style={styles.secondaryActionText}>Make captain</Text>
+                          </TouchableOpacity>
+                        )}
+                        <TouchableOpacity
+                          style={styles.removeAction}
+                          onPress={() => handleRemoveMember(member.id)}
+                        >
+                          <Text style={styles.removeActionText}>Remove</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+        </View>
+
+        <View style={styles.addMemberRow}>
+          <TextInput
+            value={newMember}
               onChangeText={setNewMember}
               placeholder="Add member by name or email"
               style={[styles.input, styles.addMemberInput]}
@@ -289,6 +512,23 @@ const ManageTeamScreen: React.FC = () => {
               <Text style={styles.addMemberButtonText}>Add</Text>
             </TouchableOpacity>
           </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Team structure</Text>
+          <Text style={styles.sectionSubtitle}>
+            Select a player from the roster, then tap a marker to place them on the pitch.
+          </Text>
+
+          <PitchFormation
+            members={members}
+            selectedMemberId={selectedMemberId}
+            onSpotPress={handleSpotPress}
+          />
+
+          <Text style={styles.pitchInstructions}>
+            The captain is highlighted with a badge and can be reassigned at any time.
+          </Text>
         </View>
 
         <View style={styles.section}>
@@ -650,22 +890,98 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     fontStyle: 'italic',
   },
-  memberRow: {
+  memberList: {
+    marginTop: 8,
+  },
+  memberCard: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginBottom: 12,
+  },
+  memberCardSelected: {
+    borderColor: '#2563eb',
+    shadowColor: '#2563eb',
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  memberCardBody: {
+    marginBottom: 12,
+  },
+  memberHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#f1f5f9',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    marginBottom: 8,
   },
   memberName: {
-    fontWeight: '600',
-    color: '#1f2937',
+    fontWeight: '700',
+    color: '#0f172a',
+    fontSize: 16,
   },
-  removeMemberText: {
-    color: '#ef4444',
+  captainBadge: {
+    backgroundColor: '#facc15',
+    color: '#1e293b',
+    fontWeight: '700',
+    fontSize: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  memberPositionText: {
+    color: '#1f2937',
+    fontSize: 14,
+  },
+  memberSelectHint: {
+    marginTop: 6,
+    color: '#64748b',
+    fontSize: 12,
+  },
+  memberFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+  },
+  roleButton: {
+    backgroundColor: '#dbeafe',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  roleButtonText: {
+    fontWeight: '700',
+    color: '#1d4ed8',
+  },
+  roleButtonHint: {
+    fontSize: 11,
+    color: '#1d4ed8',
+  },
+  memberActionGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    marginLeft: 12,
+  },
+  secondaryAction: {
+    marginRight: 12,
+  },
+  secondaryActionText: {
+    color: '#2563eb',
     fontWeight: '600',
+  },
+  removeAction: {
+    marginRight: 0,
+  },
+  removeActionText: {
+    color: '#ef4444',
+    fontWeight: '700',
   },
   addMemberRow: {
     flexDirection: 'row',
@@ -734,6 +1050,11 @@ const styles = StyleSheet.create({
   usernameButtonText: {
     color: '#fff',
     fontWeight: '700',
+  },
+  pitchInstructions: {
+    marginTop: 12,
+    color: '#475569',
+    fontSize: 13,
   },
   saveButton: {
     backgroundColor: '#16a34a',
