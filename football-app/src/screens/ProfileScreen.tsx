@@ -72,34 +72,59 @@ import { detectBiometricSupport, requestBiometricAuthentication } from '../servi
 import type { BiometricSupport } from '../services/biometricAuth';
 import { generateTrainingPlans } from '../services/trainingPlans';
 
-const sanitizeProfile = (profile: ProfileState): ProfileState => ({
-  fullName: profile.fullName.trim(),
-  displayName: profile.displayName.trim(),
-  email: profile.email ? profile.email.trim().toLowerCase() : '',
-  mobileNumber: profile.mobileNumber ? profile.mobileNumber.trim() : '',
-  dateOfBirth: profile.dateOfBirth.trim(),
-  bio: profile.bio.trim(),
-  address: {
-    line1: profile.address.line1.trim(),
-    line2: profile.address.line2.trim(),
-    city: profile.address.city.trim(),
-    state: profile.address.state.trim(),
-    postalCode: profile.address.postalCode.trim(),
-    country: profile.address.country.trim(),
-  },
-  social: {
-    twitter: profile.social.twitter.trim(),
-    instagram: profile.social.instagram.trim(),
-    facebook: profile.social.facebook.trim(),
-    twitch: profile.social.twitch.trim(),
-    youtube: profile.social.youtube.trim(),
-    website: profile.social.website.trim(),
-  },
-  paymentMethods: profile.paymentMethods.filter(
-    (method, index, methods): method is ProfilePaymentMethod =>
-      PROFILE_PAYMENT_METHODS.includes(method) && methods.indexOf(method) === index,
-  ),
-});
+const sanitizeText = (value: unknown): string => {
+  if (typeof value === 'string') {
+    return value.trim();
+  }
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return `${value}`.trim();
+  }
+
+  return '';
+};
+
+const sanitizeProfile = (profile: ProfileState): ProfileState => {
+  const sanitizeEmail = (value: unknown): string => {
+    const trimmed = sanitizeText(value);
+    return trimmed ? trimmed.toLowerCase() : '';
+  };
+
+  const sanitizedPaymentMethods = Array.isArray(profile.paymentMethods)
+    ? profile.paymentMethods.filter(
+        (method, index, methods): method is ProfilePaymentMethod =>
+          typeof method === 'string' &&
+          PROFILE_PAYMENT_METHODS.includes(method) &&
+          methods.indexOf(method) === index,
+      )
+    : [];
+
+  return {
+    fullName: sanitizeText(profile.fullName),
+    displayName: sanitizeText(profile.displayName),
+    email: sanitizeEmail(profile.email),
+    mobileNumber: sanitizeText(profile.mobileNumber),
+    dateOfBirth: sanitizeText(profile.dateOfBirth),
+    bio: sanitizeText(profile.bio),
+    address: {
+      line1: sanitizeText(profile.address?.line1),
+      line2: sanitizeText(profile.address?.line2),
+      city: sanitizeText(profile.address?.city),
+      state: sanitizeText(profile.address?.state),
+      postalCode: sanitizeText(profile.address?.postalCode),
+      country: sanitizeText(profile.address?.country),
+    },
+    social: {
+      twitter: sanitizeText(profile.social?.twitter),
+      instagram: sanitizeText(profile.social?.instagram),
+      facebook: sanitizeText(profile.social?.facebook),
+      twitch: sanitizeText(profile.social?.twitch),
+      youtube: sanitizeText(profile.social?.youtube),
+      website: sanitizeText(profile.social?.website),
+    },
+    paymentMethods: sanitizedPaymentMethods,
+  };
+};
 
 const parseUkDate = (value: string): Date | null => {
   const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
@@ -183,7 +208,8 @@ const ProfileScreen: React.FC = () => {
         }
 
         if (storedProfile) {
-          dispatch(hydrateProfile(storedProfile));
+          const sanitizedStoredProfile = sanitizeProfile(storedProfile);
+          dispatch(hydrateProfile(sanitizedStoredProfile));
         }
       } finally {
         if (mounted) {
@@ -208,17 +234,31 @@ const ProfileScreen: React.FC = () => {
       return;
     }
 
-    setProfileForm((prev) => {
-      if (prev.email && prev.email.trim().length > 0) {
-        return prev;
-      }
+    const normalisedAccountEmail = currentUser.email.trim().toLowerCase();
+    const profileEmail = profile.email.trim().toLowerCase();
 
-      return {
-        ...prev,
-        email: currentUser.email,
-      };
-    });
-  }, [currentUser?.email]);
+    if (profileEmail.length === 0) {
+      setProfileForm((prev) => {
+        const existingEmail = prev.email.trim().toLowerCase();
+        if (existingEmail.length > 0 && existingEmail !== normalisedAccountEmail) {
+          return prev;
+        }
+
+        if (existingEmail === normalisedAccountEmail) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          email: normalisedAccountEmail,
+        };
+      });
+
+      if (profileEmail !== normalisedAccountEmail) {
+        dispatch(updateProfile({ email: normalisedAccountEmail }));
+      }
+    }
+  }, [currentUser?.email, dispatch, profile.email]);
 
   useEffect(() => {
     let cancelled = false;
