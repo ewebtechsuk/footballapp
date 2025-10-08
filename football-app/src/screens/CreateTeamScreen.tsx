@@ -65,7 +65,7 @@ const CreateTeamScreen: React.FC = () => {
     setName('');
     setMembersText('');
 
-    navigation.navigate('Team');
+    navigation.navigate('MainTabs', { screen: 'ManageTeams' });
     Alert.alert('Team created', `${teamName} has been added to your teams.`);
   };
 

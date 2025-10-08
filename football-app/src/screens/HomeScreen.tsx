@@ -2,10 +2,12 @@ import React from 'react';
 import { Alert, StyleSheet, View, Text, Button, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { CompositeNavigationProp } from '@react-navigation/native';
 
 import BannerAdSlot from '../components/BannerAdSlot';
 import { defaultBannerSize, homeBannerAdUnitId } from '../config/ads';
-import { RootStackParamList } from '../types/navigation';
+import { AuthenticatedTabParamList, RootStackParamList } from '../types/navigation';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { selectCurrentUser } from '../store/slices/authSlice';
 import {
@@ -15,7 +17,10 @@ import {
 } from '../store/slices/challengesSlice';
 import { creditWallet } from '../store/slices/walletSlice';
 
-type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
+type HomeScreenNavigationProp = CompositeNavigationProp<
+  BottomTabNavigationProp<AuthenticatedTabParamList, 'Dashboard'>,
+  NativeStackNavigationProp<RootStackParamList>
+>;
 
 interface HomeScreenProps {
   navigation: HomeScreenNavigationProp;
@@ -57,7 +62,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         <Text style={styles.subtitle}>{welcomeMessage}</Text>
         <View style={styles.buttonGroup}>
           <View style={styles.buttonWrapper}>
-            <Button title="Manage Teams" onPress={() => navigation.navigate('Team')} />
+            <Button title="Manage Teams" onPress={() => navigation.navigate('ManageTeams')} />
           </View>
           <View style={styles.buttonWrapper}>
             <Button title="Create a Team" onPress={() => navigation.navigate('CreateTeam')} />

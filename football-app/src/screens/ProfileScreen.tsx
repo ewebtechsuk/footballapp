@@ -16,6 +16,8 @@ import {
   DatePickerIOS,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { Product, ProductPurchase, PurchaseError } from 'react-native-iap';
 
@@ -65,7 +67,7 @@ import {
   updateBiometricPreference,
   updateMarketingPreference,
 } from '../store/slices/authSlice';
-import type { RootStackParamList } from '../types/navigation';
+import type { AuthenticatedTabParamList, RootStackParamList } from '../types/navigation';
 import { detectBiometricSupport, requestBiometricAuthentication } from '../services/biometricAuth';
 import type { BiometricSupport } from '../services/biometricAuth';
 import { generateTrainingPlans } from '../services/trainingPlans';
@@ -133,8 +135,13 @@ const defaultDob = () => {
   return new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
 };
 
+type ProfileScreenNavigationProp = CompositeNavigationProp<
+  BottomTabNavigationProp<AuthenticatedTabParamList, 'Profile'>,
+  NativeStackNavigationProp<RootStackParamList>
+>;
+
 const ProfileScreen: React.FC = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = useNavigation<ProfileScreenNavigationProp>();
   const dispatch = useAppDispatch();
   const credits = useAppSelector((state) => state.wallet.credits);
   const premium = useAppSelector((state) => state.premium);
