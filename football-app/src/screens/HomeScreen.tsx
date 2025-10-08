@@ -1,8 +1,8 @@
-import React from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity } from 'react-native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { CompositeNavigationProp } from '@react-navigation/native';
+import React, { useCallback, useMemo } from 'react';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { CompositeNavigationProp } from '@react-navigation/native';
 
 import AuthenticatedScreenContainer from '../components/AuthenticatedScreenContainer';
 import BannerAdSlot from '../components/BannerAdSlot';
@@ -11,6 +11,7 @@ import { AuthenticatedTabParamList, RootStackParamList } from '../types/navigati
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { selectCurrentUser } from '../store/slices/authSlice';
 import {
+  Challenge,
   claimChallengeReward,
   markChallengeCompleted,
   selectActiveChallenges,
@@ -26,11 +27,37 @@ interface HomeScreenProps {
   navigation: HomeScreenNavigationProp;
 }
 
-const quickActions = [
-  { label: 'Manage teams', description: 'Edit rosters & tactics', route: 'Team' as const },
-  { label: 'Create team', description: 'Spin up a new squad', route: 'CreateTeam' as const },
-  { label: 'Join tournaments', description: 'Enter upcoming events', route: 'Tournaments' as const },
-  { label: 'Update profile', description: 'Refresh details & premium', route: 'Profile' as const },
+type QuickActionTarget =
+  | { type: 'tab'; screen: keyof AuthenticatedTabParamList }
+  | { type: 'stack'; screen: Exclude<keyof RootStackParamList, 'MainTabs'> };
+
+interface QuickActionDefinition {
+  label: string;
+  description: string;
+  target: QuickActionTarget;
+}
+
+const quickActions: QuickActionDefinition[] = [
+  {
+    label: 'Manage teams',
+    description: 'Edit rosters & tactics',
+    target: { type: 'tab', screen: 'ManageTeams' },
+  },
+  {
+    label: 'Create team',
+    description: 'Spin up a new squad',
+    target: { type: 'stack', screen: 'CreateTeam' },
+  },
+  {
+    label: 'Join tournaments',
+    description: 'Enter upcoming events',
+    target: { type: 'tab', screen: 'Tournaments' },
+  },
+  {
+    label: 'Update profile',
+    description: 'Refresh details & premium',
+    target: { type: 'tab', screen: 'Profile' },
+  },
 ];
 
 const featureHighlights = [
@@ -67,48 +94,93 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const dispatch = useAppDispatch();
   const currentUser = useAppSelector(selectCurrentUser);
   const challenges = useAppSelector(selectActiveChallenges);
-  const greetingName = currentUser?.fullName.split(' ')[0] ?? 'coach';
-  const welcomeMessage = currentUser
+
+  const greetingName = useMemo(() => currentUser?.fullName.split(' ')[0] ?? 'coach', [currentUser]);
+  const welcomeHeadline = currentUser
     ? `Ready for another matchday, ${greetingName}?`
     : 'Sign in to unlock the full football experience.';
+  const helperCopy = currentUser
+    ? 'Keep your squad sharp with quick actions and weekly challenges.'
+    : 'Create your first team, explore tournaments, and rally players in minutes.';
 
-  const handleCompleteChallenge = (challengeId: string) => {
-    dispatch(markChallengeCompleted({ challengeId }));
-  };
+  const handleQuickActionPress = useCallback(
+    (target: QuickActionTarget) => {
+      if (target.type === 'tab') {
+        navigation.navigate('MainTabs', { screen: target.screen });
+        return;
+      }
 
-  const handleClaimReward = (challengeId: string) => {
-    const challenge = challenges.find((item) => item.id === challengeId);
-    if (!challenge || challenge.status !== 'completed') {
-      return;
-    }
+      navigation.navigate(target.screen);
+    },
+    [navigation],
+  );
 
-    dispatch(claimChallengeReward({ challengeId }));
-
+  const formatReward = useCallback((challenge: Challenge) => {
     if (challenge.reward.type === 'credits') {
-      dispatch(creditWallet(challenge.reward.amount));
-      Alert.alert('Reward claimed', `You earned ${challenge.reward.amount} credits!`);
-    } else {
-      Alert.alert('Badge unlocked', `You collected the ${challenge.reward.name} badge.`);
+      return `${challenge.reward.amount} credits`;
     }
-  };
+
+    return `${challenge.reward.name} badge`;
+  }, []);
+
+  const formatExpiry = useCallback((expiresAt: string) => {
+    const expiryDate = new Date(expiresAt);
+    if (Number.isNaN(expiryDate.getTime())) {
+      return 'Expires soon';
+    }
+
+    return `Expires ${expiryDate.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+    })}`;
+  }, []);
+
+  const handleCompleteChallenge = useCallback(
+    (challengeId: string) => {
+      dispatch(markChallengeCompleted({ challengeId }));
+    },
+    [dispatch],
+  );
+
+  const handleClaimReward = useCallback(
+    (challengeId: string) => {
+      const challenge = challenges.find((item) => item.id === challengeId);
+      if (!challenge || challenge.status !== 'completed') {
+        return;
+      }
+
+      dispatch(claimChallengeReward({ challengeId }));
+
+      if (challenge.reward.type === 'credits') {
+        dispatch(creditWallet(challenge.reward.amount));
+        Alert.alert('Reward claimed', `You earned ${challenge.reward.amount} credits!`);
+      } else {
+        Alert.alert('Badge unlocked', `You collected the ${challenge.reward.name} badge.`);
+      }
+    },
+    [challenges, dispatch],
+  );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Welcome to the Football App!</Text>
-        <Text style={styles.subtitle}>{welcomeMessage}</Text>
-        <View style={styles.buttonGroup}>
-          <View style={styles.buttonWrapper}>
-            <Button title="Manage Teams" onPress={() => navigation.navigate('ManageTeams')} />
-          </View>
-          <View style={styles.buttonWrapper}>
-            <Button title="Create a Team" onPress={() => navigation.navigate('CreateTeam')} />
-          </View>
-          <View style={styles.buttonWrapper}>
-            <Button title="Join Tournaments" onPress={() => navigation.navigate('Tournaments')} />
-          </View>
-          <View style={styles.buttonWrapper}>
-            <Button title="Profile" onPress={() => navigation.navigate('Profile')} />
+    <AuthenticatedScreenContainer style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.heroCard}>
+          <Text style={styles.eyebrow}>Matchday HQ</Text>
+          <Text style={styles.title}>{welcomeHeadline}</Text>
+          <Text style={styles.helperText}>{helperCopy}</Text>
+
+          <View style={styles.quickActionGrid}>
+            {quickActions.map((action) => (
+              <TouchableOpacity
+                key={action.label}
+                style={styles.quickActionCard}
+                onPress={() => handleQuickActionPress(action.target)}
+                accessibilityRole="button"
+              >
+                <Text style={styles.quickActionLabel}>{action.label}</Text>
+                <Text style={styles.quickActionDescription}>{action.description}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
 
@@ -133,6 +205,58 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               </View>
             ))}
           </View>
+        </View>
+
+        <View style={styles.challengeSection}>
+          <Text style={styles.challengeHeading}>Weekly challenges</Text>
+          <Text style={styles.challengeSubtitle}>
+            Sharpen your squad’s focus with rotating drills and skill missions.
+          </Text>
+
+          {challenges.length === 0 ? (
+            <Text style={styles.challengeDescription}>
+              Check back soon for new challenges tailored to your coaching goals.
+            </Text>
+          ) : (
+            challenges.map((challenge) => (
+              <View key={challenge.id} style={styles.challengeCard}>
+                <View style={styles.challengeDetails}>
+                  <Text style={styles.challengeTitle}>{challenge.title}</Text>
+                  <Text style={styles.challengeDescription}>{challenge.description}</Text>
+                  <Text style={styles.challengeMeta}>{formatReward(challenge)}</Text>
+                  <Text style={styles.challengeMeta}>{formatExpiry(challenge.expiresAt)}</Text>
+                </View>
+
+                <View style={styles.challengeActions}>
+                  {challenge.status === 'available' && (
+                    <TouchableOpacity
+                      style={[styles.challengeButton, styles.challengePrimary]}
+                      onPress={() => handleCompleteChallenge(challenge.id)}
+                      accessibilityRole="button"
+                    >
+                      <Text style={styles.challengeButtonText}>Mark completed</Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {challenge.status === 'completed' && (
+                    <TouchableOpacity
+                      style={[styles.challengeButton, styles.challengePrimary]}
+                      onPress={() => handleClaimReward(challenge.id)}
+                      accessibilityRole="button"
+                    >
+                      <Text style={styles.challengeButtonText}>Claim reward</Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {challenge.status === 'claimed' && (
+                    <View style={styles.claimedBadge}>
+                      <Text style={styles.claimedBadgeText}>Reward claimed</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            ))
+          )}
         </View>
 
         <BannerAdSlot unitId={homeBannerAdUnitId} size={defaultBannerSize} />
