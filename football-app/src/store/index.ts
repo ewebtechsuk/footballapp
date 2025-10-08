@@ -9,6 +9,11 @@ import scoutingReducer from './slices/scoutingSlice';
 import tournamentsReducer from './slices/tournamentsSlice';
 import challengesReducer from './slices/challengesSlice';
 import communicationsReducer from './slices/communicationsSlice';
+import matchCenterReducer from './slices/matchCenterSlice';
+import transferMarketReducer from './slices/transferMarketSlice';
+import playerDevelopmentReducer from './slices/playerDevelopmentSlice';
+import communityReducer from './slices/communitySlice';
+import mediaReducer from './slices/mediaSlice';
 import { authReducer } from './slices/authSlice';
 import { adminReducer } from './slices/adminSlice';
 
@@ -25,6 +30,11 @@ export const store = configureStore({
     auth: authReducer,
     admin: adminReducer,
     communications: communicationsReducer,
+    matchCenter: matchCenterReducer,
+    transferMarket: transferMarketReducer,
+    playerDevelopment: playerDevelopmentReducer,
+    community: communityReducer,
+    media: mediaReducer,
 
   },
 });

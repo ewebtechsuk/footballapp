@@ -1,10 +1,13 @@
 import React, { useCallback, useEffect, useMemo } from 'react';
-import { StyleSheet, View, Text, Button, Alert } from 'react-native';
+import { StyleSheet, View, Text, Button, Alert, TouchableOpacity } from 'react-native';
 import { useRewardedAd } from 'react-native-google-mobile-ads';
 
 import { tournamentRewardedAdUnitId } from '../config/ads';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { creditWallet } from '../store/slices/walletSlice';
+import LiveMatchCenter from '../components/LiveMatchCenter';
+import { creditCosmeticTokens, creditWallet, debitWallet } from '../store/slices/walletSlice';
+import { enrolInTier, selectTournamentSeason } from '../store/slices/tournamentsSlice';
+import { selectFeaturedBroadcast, selectWeeklyReels } from '../store/slices/mediaSlice';
 import AuthenticatedScreenContainer from '../components/AuthenticatedScreenContainer';
 
 const FALLBACK_REWARD_AMOUNT = 5;
@@ -12,13 +15,26 @@ const FALLBACK_REWARD_AMOUNT = 5;
 const TournamentScreen: React.FC = () => {
   const dispatch = useAppDispatch();
   const credits = useAppSelector((state) => state.wallet.credits);
+  const cosmeticTokens = useAppSelector((state) => state.wallet.cosmeticTokens);
   const isPremium = useAppSelector((state) => state.premium.entitled);
   const season = useAppSelector(selectTournamentSeason);
+  const featuredBroadcast = useAppSelector(selectFeaturedBroadcast);
+  const weeklyReels = useAppSelector(selectWeeklyReels);
   const requestOptions = useMemo(() => ({ requestNonPersonalizedAdsOnly: true }), []);
   const { isLoaded, isClosed, load, show, reward, error } = useRewardedAd(
     tournamentRewardedAdUnitId,
     requestOptions,
   );
+  const {
+    isLoaded: isCosmeticLoaded,
+    isClosed: isCosmeticClosed,
+    load: loadCosmetic,
+    show: showCosmetic,
+    reward: cosmeticReward,
+    error: cosmeticError,
+  } = useRewardedAd(tournamentRewardedAdUnitId, requestOptions);
+
+  const highlightedReels = useMemo(() => weeklyReels.slice(0, 2), [weeklyReels]);
 
   useEffect(() => {
     load();
@@ -31,12 +47,30 @@ const TournamentScreen: React.FC = () => {
   }, [isClosed, load]);
 
   useEffect(() => {
+    loadCosmetic();
+  }, [loadCosmetic]);
+
+  useEffect(() => {
+    if (isCosmeticClosed) {
+      loadCosmetic();
+    }
+  }, [isCosmeticClosed, loadCosmetic]);
+
+  useEffect(() => {
     if (reward) {
       const rewardAmount = reward.amount ?? FALLBACK_REWARD_AMOUNT;
       dispatch(creditWallet(rewardAmount));
       Alert.alert('Reward earned!', `You received ${rewardAmount} credits.`);
     }
   }, [reward, dispatch]);
+
+  useEffect(() => {
+    if (cosmeticReward) {
+      const rewardAmount = cosmeticReward.amount ?? 3;
+      dispatch(creditCosmeticTokens(rewardAmount));
+      Alert.alert('Kit tokens earned', `You collected ${rewardAmount} cosmetic tokens.`);
+    }
+  }, [cosmeticReward, dispatch]);
 
   const handleWatchToEarn = useCallback(() => {
     if (isLoaded) {
@@ -47,11 +81,26 @@ const TournamentScreen: React.FC = () => {
     load();
   }, [isLoaded, load, show]);
 
+  const handleWatchForCosmetics = useCallback(() => {
+    if (isCosmeticLoaded) {
+      showCosmetic();
+      return;
+    }
+
+    loadCosmetic();
+  }, [isCosmeticLoaded, loadCosmetic, showCosmetic]);
+
   useEffect(() => {
     if (error) {
       Alert.alert('Ad error', error.message);
     }
   }, [error]);
+
+  useEffect(() => {
+    if (cosmeticError) {
+      Alert.alert('Ad error', cosmeticError.message);
+    }
+  }, [cosmeticError]);
 
   const handleJoinTier = (tierId: string, requiredCredits: number, tierName: string) => {
     if (credits < requiredCredits) {
@@ -81,6 +130,31 @@ const TournamentScreen: React.FC = () => {
         )}
       </View>
 
+      <View style={styles.matchCenterSection}>
+        <Text style={styles.sectionHeading}>Live match centre</Text>
+        <Text style={styles.sectionSubheading}>
+          Follow simulated commentary, momentum swings, and key statistics without leaving the
+          tournament hub.
+        </Text>
+        <LiveMatchCenter />
+      </View>
+
+      <View style={styles.tokensCard}>
+        <View style={styles.tokensHeader}>
+          <View>
+            <Text style={styles.tokensTitle}>Cosmetic tokens</Text>
+            <Text style={styles.tokensHelper}>Redeem for banners, kits, and celebration effects.</Text>
+          </View>
+          <Text style={styles.tokensValue}>{cosmeticTokens}</Text>
+        </View>
+        <Button
+          title={
+            isCosmeticLoaded ? 'Watch a short broadcast ad to earn kit tokens' : 'Load cosmetic ad'
+          }
+          onPress={handleWatchForCosmetics}
+        />
+      </View>
+
       {isPremium ? (
         <View style={styles.premiumInsights}>
           <Text style={styles.premiumInsightsTitle}>Premium tournament insights</Text>
@@ -95,6 +169,96 @@ const TournamentScreen: React.FC = () => {
           </Text>
         </View>
       )}
+
+      <View style={styles.ladderSection}>
+        <Text style={styles.ladderTitle}>{season.seasonLabel}</Text>
+        {season.currentStanding && (
+          <View style={styles.standingCard}>
+            <Text style={styles.standingTitle}>
+              Current position: #{season.currentStanding.position} in {season.currentStanding.tierId}
+            </Text>
+            <Text style={styles.standingMeta}>
+              W {season.currentStanding.wins} • D {season.currentStanding.draws} • L{' '}
+              {season.currentStanding.losses} | GD {season.currentStanding.goalDifference}
+            </Text>
+            <Text style={styles.standingMeta}>Trend: {season.currentStanding.trend.toUpperCase()}</Text>
+          </View>
+        )}
+
+        <View style={styles.tierList}>
+          {season.ladderTiers.map((tier) => {
+            const isActive = tier.id === season.enrolledTierId;
+            return (
+              <View key={tier.id} style={[styles.tierCard, isActive && styles.tierCardActive]}>
+                <View style={styles.tierHeader}>
+                  <View>
+                    <Text style={styles.tierName}>{tier.name}</Text>
+                    <Text style={styles.tierDescription}>{tier.description}</Text>
+                  </View>
+                  <View>
+                    <Text style={styles.tierCredits}>{tier.requiredCredits} credits</Text>
+                    {isActive && <Text style={styles.activeBadge}>Active</Text>}
+                  </View>
+                </View>
+                <View style={styles.tierInsights}>
+                  <Text style={styles.tierMeta}>
+                    Promotion spots: {tier.promotionSlots} • Relegation: {tier.relegationSlots}
+                  </Text>
+                  {tier.analyticsHighlights.map((highlight) => (
+                    <Text key={highlight} style={styles.tierInsightBullet}>
+                      • {highlight}
+                    </Text>
+                  ))}
+                </View>
+                {!isActive && (
+                  <TouchableOpacity
+                    style={styles.joinButton}
+                    onPress={() => handleJoinTier(tier.id, tier.requiredCredits, tier.name)}
+                  >
+                    <Text style={styles.joinButtonText}>Join tier</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            );
+          })}
+        </View>
+
+        {season.recentInsights.length > 0 && (
+          <View>
+            <Text style={styles.sectionHeading}>Latest insights</Text>
+            {season.recentInsights.map((insight) => (
+              <Text key={insight} style={styles.ladderSubtitle}>
+                • {insight}
+              </Text>
+            ))}
+          </View>
+        )}
+      </View>
+
+      {featuredBroadcast && (
+        <View style={styles.broadcastCard}>
+          <Text style={styles.sectionHeading}>Featured broadcast</Text>
+          <Text style={styles.broadcastTitle}>{featuredBroadcast.title}</Text>
+          <Text style={styles.broadcastMeta}>
+            Hosted by {featuredBroadcast.host} • {new Date(featuredBroadcast.scheduledFor).toLocaleString()}
+          </Text>
+          <Text style={styles.broadcastSummary}>{featuredBroadcast.summary}</Text>
+          <Text style={styles.broadcastLink}>{featuredBroadcast.streamUrl}</Text>
+        </View>
+      )}
+
+      <View style={styles.reelCardContainer}>
+        <Text style={styles.sectionHeading}>Weekly highlight reels</Text>
+        {highlightedReels.map((reel) => (
+          <View key={reel.id} style={styles.reelCard}>
+            <Text style={styles.reelTitle}>{reel.title}</Text>
+            <Text style={styles.reelMeta}>{reel.description}</Text>
+            <Text style={styles.reelMeta}>
+              Published {new Date(reel.publishedAt).toLocaleDateString()} • {reel.clipIds.length} clips
+            </Text>
+          </View>
+        ))}
+      </View>
     </AuthenticatedScreenContainer>
   );
 };
@@ -139,6 +303,43 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#16a34a',
     marginBottom: 12,
+  },
+  matchCenterSection: {
+    gap: 12,
+  },
+  sectionHeading: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  sectionSubheading: {
+    fontSize: 13,
+    color: '#475569',
+  },
+  tokensCard: {
+    backgroundColor: '#eef2ff',
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+  },
+  tokensHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  tokensTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#312e81',
+  },
+  tokensHelper: {
+    fontSize: 12,
+    color: '#4338ca',
+  },
+  tokensValue: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#4338ca',
   },
   premiumInsights: {
     marginTop: 24,
@@ -262,6 +463,50 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#475569',
     lineHeight: 18,
+  },
+  broadcastCard: {
+    marginTop: 24,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 16,
+    padding: 20,
+    gap: 8,
+  },
+  broadcastTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1f2937',
+  },
+  broadcastMeta: {
+    fontSize: 12,
+    color: '#475569',
+  },
+  broadcastSummary: {
+    fontSize: 13,
+    color: '#1f2937',
+  },
+  broadcastLink: {
+    fontSize: 12,
+    color: '#2563eb',
+    fontWeight: '600',
+  },
+  reelCardContainer: {
+    marginTop: 24,
+    gap: 12,
+  },
+  reelCard: {
+    backgroundColor: '#fef3c7',
+    borderRadius: 14,
+    padding: 16,
+    gap: 6,
+  },
+  reelTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#92400e',
+  },
+  reelMeta: {
+    fontSize: 12,
+    color: '#b45309',
   },
 });
 
