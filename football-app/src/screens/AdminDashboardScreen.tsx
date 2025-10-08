@@ -214,7 +214,10 @@ const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ navigation 
           <Text style={styles.unauthorisedText}>
             You need an admin account to view the management centre.
           </Text>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('Home')}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.navigate('MainTabs', { screen: 'Dashboard' })}
+          >
             <Text style={styles.backButtonText}>Go back</Text>
           </TouchableOpacity>
         </View>
