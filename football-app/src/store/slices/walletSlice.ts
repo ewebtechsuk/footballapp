@@ -15,9 +15,17 @@ const walletSlice = createSlice({
     creditWallet: (state: WalletState, action: PayloadAction<number>) => {
       state.credits += action.payload;
     },
+    debitWallet: (state: WalletState, action: PayloadAction<number>) => {
+      const amount = Math.max(0, action.payload);
+      if (amount === 0) {
+        return;
+      }
+
+      state.credits = Math.max(0, state.credits - amount);
+    },
   },
 });
 
-export const { creditWallet } = walletSlice.actions;
+export const { creditWallet, debitWallet } = walletSlice.actions;
 
 export default walletSlice.reducer;

@@ -1,27 +1,96 @@
 import React from 'react';
-import { StyleSheet, View, Text, Button } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { CompositeNavigationProp } from '@react-navigation/native';
 
+import AuthenticatedScreenContainer from '../components/AuthenticatedScreenContainer';
 import BannerAdSlot from '../components/BannerAdSlot';
 import { defaultBannerSize, homeBannerAdUnitId } from '../config/ads';
-import { RootStackParamList } from '../types/navigation';
-import { useAppSelector } from '../store/hooks';
+import { AuthenticatedTabParamList, RootStackParamList } from '../types/navigation';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { selectCurrentUser } from '../store/slices/authSlice';
+import {
+  claimChallengeReward,
+  markChallengeCompleted,
+  selectActiveChallenges,
+} from '../store/slices/challengesSlice';
+import { creditWallet } from '../store/slices/walletSlice';
 
-type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
+type HomeScreenNavigationProp = CompositeNavigationProp<
+  BottomTabNavigationProp<AuthenticatedTabParamList, 'Dashboard'>,
+  NativeStackNavigationProp<RootStackParamList>
+>;
 
 interface HomeScreenProps {
   navigation: HomeScreenNavigationProp;
 }
 
+const quickActions = [
+  { label: 'Manage teams', description: 'Edit rosters & tactics', route: 'Team' as const },
+  { label: 'Create team', description: 'Spin up a new squad', route: 'CreateTeam' as const },
+  { label: 'Join tournaments', description: 'Enter upcoming events', route: 'Tournaments' as const },
+  { label: 'Update profile', description: 'Refresh details & premium', route: 'Profile' as const },
+];
+
+const featureHighlights = [
+  {
+    title: 'Match scheduling hub',
+    copy:
+      'Coordinate fixtures, collect availability votes, and sync confirmed games straight to everyone’s calendars.',
+  },
+  {
+    title: 'Scouting marketplace',
+    copy:
+      'Promote open positions, browse free agents by skill tags, and invite prospects to trial sessions.',
+  },
+  {
+    title: 'Season ladders & challenges',
+    copy:
+      'Track promotion and relegation paths, tackle rotating community skill drills, and earn badge rewards.',
+  },
+  {
+    title: 'Personalised training packs',
+    copy:
+      'Serve drills and wellness tips tuned to each player’s profile, with premium plans unlocking deeper insights.',
+  },
+];
+
+const designOpportunities = [
+  'Introduce a matchday dashboard tile that surfaces live tactics, kit colours, and weather in a single glance.',
+  'Layer subtle gradients and club accent colours into team cards for clearer visual hierarchy.',
+  'Add micro-interactions (progress pulses, celebratory confetti) when teams hit milestones or unlock rewards.',
+  'Bring in a dark mode palette that echoes stadium floodlights for late-night strategising.',
+];
+
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
+  const dispatch = useAppDispatch();
   const currentUser = useAppSelector(selectCurrentUser);
   const greetingName =
     currentUser?.fullName?.trim().split(/\s+/)[0] ?? 'coach';
   const welcomeMessage = currentUser
     ? `Ready for another matchday, ${greetingName}?`
     : 'Sign in to unlock the full football experience.';
+
+  const handleCompleteChallenge = (challengeId: string) => {
+    dispatch(markChallengeCompleted({ challengeId }));
+  };
+
+  const handleClaimReward = (challengeId: string) => {
+    const challenge = challenges.find((item) => item.id === challengeId);
+    if (!challenge || challenge.status !== 'completed') {
+      return;
+    }
+
+    dispatch(claimChallengeReward({ challengeId }));
+
+    if (challenge.reward.type === 'credits') {
+      dispatch(creditWallet(challenge.reward.amount));
+      Alert.alert('Reward claimed', `You earned ${challenge.reward.amount} credits!`);
+    } else {
+      Alert.alert('Badge unlocked', `You collected the ${challenge.reward.name} badge.`);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -30,7 +99,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         <Text style={styles.subtitle}>{welcomeMessage}</Text>
         <View style={styles.buttonGroup}>
           <View style={styles.buttonWrapper}>
-            <Button title="Manage Teams" onPress={() => navigation.navigate('Team')} />
+            <Button title="Manage Teams" onPress={() => navigation.navigate('ManageTeams')} />
           </View>
           <View style={styles.buttonWrapper}>
             <Button title="Create a Team" onPress={() => navigation.navigate('CreateTeam')} />
@@ -41,42 +110,218 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           <View style={styles.buttonWrapper}>
             <Button title="Profile" onPress={() => navigation.navigate('Profile')} />
           </View>
-
         </View>
-      </View>
-      <BannerAdSlot unitId={homeBannerAdUnitId} size={defaultBannerSize} />
-    </SafeAreaView>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Feature highlights</Text>
+          <View style={styles.featureList}>
+            {featureHighlights.map((feature) => (
+              <View key={feature.title} style={styles.featureCard}>
+                <Text style={styles.featureTitle}>{feature.title}</Text>
+                <Text style={styles.featureCopy}>{feature.copy}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Design opportunities</Text>
+          <View style={styles.designList}>
+            {designOpportunities.map((idea) => (
+              <View key={idea} style={styles.designIdea}>
+                <Text style={styles.designIdeaText}>{idea}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <BannerAdSlot unitId={homeBannerAdUnitId} size={defaultBannerSize} />
+      </ScrollView>
+    </AuthenticatedScreenContainer>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f3f4f6',
+  container: {
+    backgroundColor: '#eef2ff',
   },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
+  scrollContent: {
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    gap: 24,
+  },
+  heroCard: {
+    backgroundColor: '#1d4ed8',
+    borderRadius: 24,
+    padding: 24,
+    gap: 12,
+  },
+  eyebrow: {
+    fontSize: 13,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+    fontWeight: '600',
+    color: '#bfdbfe',
   },
   title: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '700',
-    marginBottom: 32,
-    textAlign: 'center',
+    color: '#ffffff',
+    lineHeight: 32,
   },
-  subtitle: {
+  helperText: {
+    fontSize: 14,
+    color: '#e2e8f0',
+    lineHeight: 20,
+  },
+  section: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 20,
+    gap: 16,
+    shadowColor: '#1e293b',
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1f2937',
+  },
+  quickActionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  quickActionCard: {
+    flexBasis: '48%',
+    backgroundColor: '#eff6ff',
+    borderRadius: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+    gap: 8,
+  },
+  quickActionLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1e40af',
+  },
+  quickActionDescription: {
+    fontSize: 12,
+    color: '#1d4ed8',
+  },
+  featureList: {
+    gap: 12,
+  },
+  featureCard: {
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    gap: 8,
+  },
+  featureTitle: {
     fontSize: 16,
-    color: '#4b5563',
-    marginBottom: 24,
-    textAlign: 'center',
+    fontWeight: '700',
+    color: '#0f172a',
   },
-  buttonGroup: {
+  featureCopy: {
+    fontSize: 13,
+    color: '#475569',
+    lineHeight: 18,
+  },
+  designList: {
+    gap: 12,
+  },
+  designIdea: {
+    backgroundColor: '#f3f4f6',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  designIdeaText: {
+    fontSize: 13,
+    color: '#1f2937',
+    lineHeight: 18,
+  },
+  challengeSection: {
+    marginTop: 32,
     width: '100%',
+    gap: 16,
+    backgroundColor: '#fef3c7',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#fcd34d',
   },
-  buttonWrapper: {
-    marginBottom: 12,
+  challengeHeading: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#92400e',
+  },
+  challengeSubtitle: {
+    color: '#b45309',
+    fontSize: 13,
+  },
+  challengeCard: {
+    backgroundColor: '#fff7ed',
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+  },
+  challengeDetails: {
+    gap: 6,
+  },
+  challengeTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#9a3412',
+  },
+  challengeDescription: {
+    color: '#7c2d12',
+    fontSize: 13,
+  },
+  challengeMeta: {
+    fontSize: 12,
+    color: '#b45309',
+  },
+  challengeActions: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  challengeButton: {
+    borderRadius: 999,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+  },
+  challengePrimary: {
+    backgroundColor: '#f97316',
+  },
+  challengeButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 13,
+    textTransform: 'uppercase',
+  },
+  claimedBadge: {
+    backgroundColor: '#bbf7d0',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+  },
+  claimedBadgeText: {
+    color: '#166534',
+    fontWeight: '700',
   },
 });
 

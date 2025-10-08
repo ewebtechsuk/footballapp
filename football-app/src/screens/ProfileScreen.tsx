@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ActivityIndicator,
   Alert,
@@ -16,9 +15,12 @@ import {
   DatePickerIOS,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { Product, ProductPurchase, PurchaseError } from 'react-native-iap';
 
+import AuthenticatedScreenContainer from '../components/AuthenticatedScreenContainer';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { creditWallet } from '../store/slices/walletSlice';
 import type {
@@ -59,13 +61,22 @@ import {
   hydratePremium,
 } from '../store/slices/premiumSlice';
 import { loadStoredProfile, persistProfile as persistProfileToStorage } from '../services/profileStorage';
-import { logoutUser, selectCurrentUser, updateMarketingPreference } from '../store/slices/authSlice';
-import type { RootStackParamList } from '../types/navigation';
+import {
+  logoutUser,
+  selectCurrentUser,
+  updateBiometricPreference,
+  updateMarketingPreference,
+} from '../store/slices/authSlice';
+import type { AuthenticatedTabParamList, RootStackParamList } from '../types/navigation';
+import { detectBiometricSupport, requestBiometricAuthentication } from '../services/biometricAuth';
+import type { BiometricSupport } from '../services/biometricAuth';
+import { generateTrainingPlans } from '../services/trainingPlans';
 
 const sanitizeProfile = (profile: ProfileState): ProfileState => ({
   fullName: profile.fullName.trim(),
   displayName: profile.displayName.trim(),
-  mobileNumber: profile.mobileNumber.trim(),
+  email: profile.email ? profile.email.trim().toLowerCase() : '',
+  mobileNumber: profile.mobileNumber ? profile.mobileNumber.trim() : '',
   dateOfBirth: profile.dateOfBirth.trim(),
   bio: profile.bio.trim(),
   address: {
@@ -124,8 +135,13 @@ const defaultDob = () => {
   return new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
 };
 
+type ProfileScreenNavigationProp = CompositeNavigationProp<
+  BottomTabNavigationProp<AuthenticatedTabParamList, 'Profile'>,
+  NativeStackNavigationProp<RootStackParamList>
+>;
+
 const ProfileScreen: React.FC = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = useNavigation<ProfileScreenNavigationProp>();
   const dispatch = useAppDispatch();
   const credits = useAppSelector((state) => state.wallet.credits);
   const premium = useAppSelector((state) => state.premium);
@@ -148,6 +164,13 @@ const ProfileScreen: React.FC = () => {
   const [iosDobCandidate, setIosDobCandidate] = useState<Date>(defaultDob());
   const [updatingSelfMarketing, setUpdatingSelfMarketing] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [checkingBiometricSupport, setCheckingBiometricSupport] = useState(false);
+  const [biometricSupport, setBiometricSupport] = useState<BiometricSupport | null>(null);
+  const [updatingBiometrics, setUpdatingBiometrics] = useState(false);
+  const trainingRecommendations = useMemo(
+    () => generateTrainingPlans(profileForm, premium.entitled),
+    [profileForm, premium.entitled],
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -180,6 +203,48 @@ const ProfileScreen: React.FC = () => {
     setProfileForm(profile);
   }, [profile]);
 
+  useEffect(() => {
+    if (!currentUser?.email) {
+      return;
+    }
+
+    setProfileForm((prev) => {
+      if (prev.email && prev.email.trim().length > 0) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        email: currentUser.email,
+      };
+    });
+  }, [currentUser?.email]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const evaluateSupport = async () => {
+      if (!currentUser) {
+        setBiometricSupport(null);
+        setCheckingBiometricSupport(false);
+        return;
+      }
+
+      setCheckingBiometricSupport(true);
+      const support = await detectBiometricSupport();
+      if (!cancelled) {
+        setBiometricSupport(support);
+        setCheckingBiometricSupport(false);
+      }
+    };
+
+    evaluateSupport();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser]);
+
   const socialFieldConfigs = useMemo<
     Array<{ key: keyof ProfileState['social']; label: string; placeholder: string }>
   >(
@@ -195,7 +260,7 @@ const ProfileScreen: React.FC = () => {
   );
 
   const handleProfileFieldChange = (
-    key: 'fullName' | 'displayName' | 'mobileNumber' | 'dateOfBirth' | 'bio',
+    key: 'fullName' | 'displayName' | 'email' | 'mobileNumber' | 'dateOfBirth' | 'bio',
   ) => (value: string) => {
     setProfileForm((prev) => ({
       ...prev,
@@ -225,7 +290,7 @@ const ProfileScreen: React.FC = () => {
 
   const handleSelfMarketingPreference = useCallback(
     async (value: boolean) => {
-      if (!currentUser) {
+      if (!currentUser || updatingSelfMarketing) {
         return;
       }
 
@@ -241,7 +306,73 @@ const ProfileScreen: React.FC = () => {
         setUpdatingSelfMarketing(false);
       }
     },
-    [currentUser, dispatch],
+    [currentUser, dispatch, updatingSelfMarketing],
+  );
+
+  const handleBiometricPreference = useCallback(
+    async (enabled: boolean) => {
+      if (!currentUser || updatingBiometrics) {
+        return;
+      }
+
+      if (!biometricSupport) {
+        Alert.alert(
+          'Biometrics unavailable',
+          'We could not verify your device\'s biometric capabilities. Please try again later.',
+        );
+        return;
+      }
+
+      if (enabled) {
+        if (!biometricSupport.available) {
+          Alert.alert(
+            'Biometrics not supported',
+            'This device does not support biometric authentication.',
+          );
+          return;
+        }
+
+        if (!biometricSupport.enrolled) {
+          Alert.alert(
+            'Biometrics not set up',
+            'Set up Face ID, Touch ID or a fingerprint on your device before enabling biometric login.',
+          );
+          return;
+        }
+
+        const authResult = await requestBiometricAuthentication('Enable biometric login');
+        if (!authResult.success) {
+          Alert.alert(
+            'Biometric check failed',
+            authResult.error ?? 'We were unable to verify your identity with biometrics.',
+          );
+          return;
+        }
+      }
+
+      setUpdatingBiometrics(true);
+      try {
+        await dispatch(
+          updateBiometricPreference({ userId: currentUser.id, biometricEnabled: enabled }),
+        ).unwrap();
+
+        Alert.alert(
+          enabled ? 'Biometric login enabled' : 'Biometric login disabled',
+          enabled
+            ? 'You can now use biometrics to sign in to Football App faster.'
+            : 'Biometric sign in has been turned off for this account.',
+        );
+      } catch (error) {
+        const message =
+          typeof error === 'string'
+            ? error
+            : 'Unable to update your biometric preference. Please try again later.';
+        Alert.alert('Update failed', message);
+      } finally {
+        setUpdatingBiometrics(false);
+      }
+    },
+    [biometricSupport, currentUser, dispatch, updatingBiometrics],
   );
 
   const handleLogout = useCallback(async () => {
@@ -360,6 +491,14 @@ const ProfileScreen: React.FC = () => {
       sanitizedProfile.paymentMethods.includes(method),
     );
 
+    if (
+      sanitizedProfile.email &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sanitizedProfile.email.toLowerCase())
+    ) {
+      Alert.alert('Invalid email address', 'Please enter a valid email.');
+      return;
+    }
+
     if (sanitizedProfile.dateOfBirth) {
       const parsedDob = parseUkDate(sanitizedProfile.dateOfBirth);
       if (!parsedDob) {
@@ -378,6 +517,7 @@ const ProfileScreen: React.FC = () => {
     setSavingProfile(true);
     try {
       dispatch(updateProfile(sanitizedProfile));
+      setProfileForm(sanitizedProfile);
       await persistProfileToStorage(sanitizedProfile);
       Alert.alert('Profile updated', 'Your profile details have been saved.');
     } catch (error) {
@@ -650,7 +790,7 @@ const ProfileScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <AuthenticatedScreenContainer style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <Text style={styles.title}>Profile</Text>
@@ -714,6 +854,49 @@ const ProfileScreen: React.FC = () => {
           </View>
         ) : null}
 
+        {currentUser ? (
+          <View style={styles.securityCard}>
+            <Text style={styles.sectionTitle}>Security settings</Text>
+            <Text style={styles.sectionSubtitle}>
+              Keep your account protected and sign in faster with biometrics.
+            </Text>
+            <View style={styles.securityRow}>
+              <View style={styles.securityCopy}>
+                <Text style={styles.securityLabel}>Biometric login</Text>
+                <Text style={styles.securityDescription}>
+                  {currentUser.biometricEnabled
+                    ? 'Use your fingerprint or face to sign in without typing your password.'
+                    : 'Enable Touch ID, Face ID or fingerprint unlock to sign in more quickly.'}
+                </Text>
+                {biometricSupport && !biometricSupport.available ? (
+                  <Text style={styles.securityHelper}>
+                    This device does not support biometric authentication.
+                  </Text>
+                ) : null}
+                {biometricSupport && biometricSupport.available && !biometricSupport.enrolled ? (
+                  <Text style={styles.securityHelper}>
+                    Set up biometrics in your device settings before turning this on.
+                  </Text>
+                ) : null}
+              </View>
+              {checkingBiometricSupport ? (
+                <ActivityIndicator color="#2563eb" />
+              ) : (
+                <Switch
+                  value={currentUser.biometricEnabled}
+                  onValueChange={handleBiometricPreference}
+                  disabled={
+                    updatingBiometrics ||
+                    !biometricSupport ||
+                    !biometricSupport.available ||
+                    (!biometricSupport.enrolled && !currentUser.biometricEnabled)
+                  }
+                />
+              )}
+            </View>
+          </View>
+        ) : null}
+
         <View style={styles.profileCard}>
           <Text style={styles.sectionTitle}>Account details</Text>
           <Text style={styles.sectionSubtitle}>
@@ -747,6 +930,21 @@ const ProfileScreen: React.FC = () => {
                   placeholder="Name shown to other managers"
                   autoCapitalize="words"
                   accessibilityLabel="Display name"
+                />
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Email</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={profileForm.email}
+                  onChangeText={handleProfileFieldChange('email')}
+                  placeholder="e.g. manager@club.co.uk"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  accessibilityLabel="Contact email"
+                  textContentType="emailAddress"
                 />
               </View>
 
@@ -942,6 +1140,47 @@ const ProfileScreen: React.FC = () => {
           )}
         </View>
 
+        <View style={styles.trainingSection}>
+          <Text style={styles.trainingHeading}>Personalised training plans</Text>
+          <Text style={styles.trainingSubtitle}>
+            Tailored sessions based on your profile, location, and premium access.
+          </Text>
+
+          {trainingRecommendations.unlocked.map((plan) => (
+            <View key={plan.id} style={styles.trainingCard}>
+              <View style={styles.trainingHeader}>
+                <Text style={styles.trainingTitle}>{plan.title}</Text>
+                <Text style={styles.trainingFocus}>{plan.focus.toUpperCase()}</Text>
+              </View>
+              <Text style={styles.trainingSummary}>{plan.summary}</Text>
+              <View style={styles.trainingTipList}>
+                {plan.tips.map((tip) => (
+                  <Text key={tip} style={styles.trainingTip}>
+                    • {tip}
+                  </Text>
+                ))}
+              </View>
+            </View>
+          ))}
+
+          {trainingRecommendations.locked.length > 0 ? (
+            <View style={styles.lockedTrainingCard}>
+              <Text style={styles.lockedTitle}>Premium-only insights</Text>
+              {trainingRecommendations.locked.map((plan) => (
+                <Text key={plan.id} style={styles.lockedSummary}>
+                  {plan.title} — unlock with Premium
+                </Text>
+              ))}
+              <TouchableOpacity
+                style={styles.lockedCta}
+                onPress={() => navigation.navigate('Profile')}
+              >
+                <Text style={styles.lockedCtaText}>View membership options</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+        </View>
+
         <View style={styles.walletCard}>
           <Text style={styles.walletLabel}>Wallet credits</Text>
           <Text style={styles.walletValue}>{walletSummary.balance}</Text>
@@ -1130,7 +1369,7 @@ const ProfileScreen: React.FC = () => {
           </View>
         </Modal>
       )}
-    </SafeAreaView>
+    </AuthenticatedScreenContainer>
   );
 };
 
@@ -1143,6 +1382,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: 24,
     gap: 24,
+    paddingBottom: 48,
   },
   header: {
     alignItems: 'center',
@@ -1242,6 +1482,40 @@ const styles = StyleSheet.create({
   accountSecondaryButtonText: {
     color: '#cbd5f5',
     fontWeight: '600',
+  },
+  securityCard: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#cbd5f5',
+    padding: 20,
+    gap: 16,
+  },
+  securityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
+  },
+  securityCopy: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  securityLabel: {
+    fontWeight: '700',
+    color: '#0f172a',
+    marginBottom: 4,
+  },
+  securityDescription: {
+    color: '#334155',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  securityHelper: {
+    marginTop: 8,
+    color: '#ef4444',
+    fontSize: 12,
+    lineHeight: 16,
   },
   profileCard: {
     backgroundColor: '#f8fafc',
@@ -1393,6 +1667,84 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: '#fff',
     fontWeight: '600',
+  },
+  trainingSection: {
+    marginTop: 24,
+    gap: 16,
+    backgroundColor: '#eef2ff',
+    borderRadius: 20,
+    padding: 20,
+  },
+  trainingHeading: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1d4ed8',
+  },
+  trainingSubtitle: {
+    fontSize: 13,
+    color: '#1e3a8a',
+  },
+  trainingCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: '#c7d2fe',
+  },
+  trainingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  trainingTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1d4ed8',
+  },
+  trainingFocus: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#4338ca',
+  },
+  trainingSummary: {
+    color: '#1e293b',
+    fontSize: 13,
+  },
+  trainingTipList: {
+    gap: 4,
+  },
+  trainingTip: {
+    color: '#1e293b',
+    fontSize: 12,
+  },
+  lockedTrainingCard: {
+    backgroundColor: '#ede9fe',
+    borderRadius: 16,
+    padding: 16,
+    gap: 8,
+  },
+  lockedTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#4c1d95',
+  },
+  lockedSummary: {
+    fontSize: 12,
+    color: '#4c1d95',
+  },
+  lockedCta: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    backgroundColor: '#4c1d95',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+  },
+  lockedCtaText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 12,
   },
   walletCard: {
     backgroundColor: '#f3f4f6',

@@ -21,7 +21,8 @@
       "@models/*": ["models/*"],
       "react-native-google-mobile-ads": ["shims/react-native-google-mobile-ads"],
       "@react-native-async-storage/async-storage": ["shims/async-storage"],
-      "react-native-iap": ["shims/react-native-iap"]
+      "react-native-iap": ["shims/react-native-iap"],
+      "expo-local-authentication": ["shims/expo-local-authentication"]
     }
   },
   "include": ["src/**/*", "App.tsx", "index.ts"],

@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { StyleSheet, View, Text, Button, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRewardedAd } from 'react-native-google-mobile-ads';
 
 import { tournamentRewardedAdUnitId } from '../config/ads';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { creditWallet } from '../store/slices/walletSlice';
+import AuthenticatedScreenContainer from '../components/AuthenticatedScreenContainer';
 
 const FALLBACK_REWARD_AMOUNT = 5;
 
@@ -13,6 +13,7 @@ const TournamentScreen: React.FC = () => {
   const dispatch = useAppDispatch();
   const credits = useAppSelector((state) => state.wallet.credits);
   const isPremium = useAppSelector((state) => state.premium.entitled);
+  const season = useAppSelector(selectTournamentSeason);
   const requestOptions = useMemo(() => ({ requestNonPersonalizedAdsOnly: true }), []);
   const { isLoaded, isClosed, load, show, reward, error } = useRewardedAd(
     tournamentRewardedAdUnitId,
@@ -52,41 +53,49 @@ const TournamentScreen: React.FC = () => {
     }
   }, [error]);
 
+  const handleJoinTier = (tierId: string, requiredCredits: number, tierName: string) => {
+    if (credits < requiredCredits) {
+      Alert.alert('Not enough credits', 'Earn more credits to unlock this ladder tier.');
+      return;
+    }
+
+    dispatch(debitWallet(requiredCredits));
+    dispatch(enrolInTier({ tierId }));
+    Alert.alert('Enrolled', `You are now competing in the ${tierName}. Good luck!`);
+  };
+
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Tournaments</Text>
-        <Text style={styles.subtitle}>Earn credits to enter premium tournaments.</Text>
+    <AuthenticatedScreenContainer style={styles.safeArea} contentStyle={styles.content}>
+      <Text style={styles.title}>Tournaments</Text>
+      <Text style={styles.subtitle}>Earn credits to enter premium tournaments.</Text>
 
-        <View style={styles.rewardCard}>
-          <Text style={styles.rewardTitle}>Wallet Balance</Text>
-          <Text style={styles.rewardAmount}>{credits} credits</Text>
-          <Button
-            title={isLoaded ? 'Watch to earn entry credits' : 'Load rewarded ad'}
-            onPress={handleWatchToEarn}
-          />
-          {!isLoaded && (
-            <Text style={styles.helperText}>Tap the button again if the ad is still loading.</Text>
-          )}
-        </View>
-
-        {isPremium ? (
-          <View style={styles.premiumInsights}>
-            <Text style={styles.premiumInsightsTitle}>Premium tournament insights</Text>
-            <Text style={styles.premiumInsightsDetail}>Next best event: Elite Cup (opens in 3 days)</Text>
-            <Text style={styles.premiumInsightsDetail}>Recommended entry fee budget: 120 credits</Text>
-          </View>
-        ) : (
-          <View style={styles.premiumUpsell}>
-            <Text style={styles.premiumUpsellText}>
-              Premium members get tournament recommendations tailored to their squad. Unlock from
-              the Profile screen.
-            </Text>
-          </View>
+      <View style={styles.rewardCard}>
+        <Text style={styles.rewardTitle}>Wallet Balance</Text>
+        <Text style={styles.rewardAmount}>{credits} credits</Text>
+        <Button
+          title={isLoaded ? 'Watch to earn entry credits' : 'Load rewarded ad'}
+          onPress={handleWatchToEarn}
+        />
+        {!isLoaded && (
+          <Text style={styles.helperText}>Tap the button again if the ad is still loading.</Text>
         )}
       </View>
-    </SafeAreaView>
 
+      {isPremium ? (
+        <View style={styles.premiumInsights}>
+          <Text style={styles.premiumInsightsTitle}>Premium tournament insights</Text>
+          <Text style={styles.premiumInsightsDetail}>Next best event: Elite Cup (opens in 3 days)</Text>
+          <Text style={styles.premiumInsightsDetail}>Recommended entry fee budget: 120 credits</Text>
+        </View>
+      ) : (
+        <View style={styles.premiumUpsell}>
+          <Text style={styles.premiumUpsellText}>
+            Premium members get tournament recommendations tailored to their squad. Unlock from the
+            Profile screen.
+          </Text>
+        </View>
+      )}
+    </AuthenticatedScreenContainer>
   );
 };
 
@@ -96,8 +105,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   content: {
-    flex: 1,
     padding: 24,
+    gap: 20,
   },
   title: {
     fontSize: 28,
@@ -146,6 +155,100 @@ const styles = StyleSheet.create({
   premiumInsightsDetail: {
     fontSize: 13,
     color: '#3f6212',
+  },
+  ladderSection: {
+    marginTop: 24,
+    padding: 20,
+    borderRadius: 16,
+    backgroundColor: '#f0fdf4',
+    gap: 16,
+  },
+  ladderTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#166534',
+  },
+  ladderSubtitle: {
+    fontSize: 13,
+    color: '#166534',
+  },
+  standingCard: {
+    borderRadius: 12,
+    padding: 16,
+    backgroundColor: '#dcfce7',
+    gap: 4,
+  },
+  standingTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#166534',
+  },
+  standingMeta: {
+    fontSize: 12,
+    color: '#166534',
+  },
+  tierList: {
+    gap: 16,
+  },
+  tierCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    backgroundColor: '#ffffff',
+    padding: 16,
+    gap: 10,
+  },
+  tierCardActive: {
+    borderColor: '#16a34a',
+    shadowColor: '#16a34a',
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  tierHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  tierName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#166534',
+  },
+  tierCredits: {
+    color: '#047857',
+    fontWeight: '700',
+  },
+  tierDescription: {
+    color: '#14532d',
+    fontSize: 13,
+  },
+  tierMeta: {
+    fontSize: 12,
+    color: '#15803d',
+  },
+  tierInsights: {
+    gap: 4,
+  },
+  tierInsightBullet: {
+    fontSize: 12,
+    color: '#15803d',
+  },
+  joinButton: {
+    borderRadius: 999,
+    backgroundColor: '#16a34a',
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  joinButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+  activeBadge: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#16a34a',
   },
   premiumUpsell: {
     marginTop: 24,
