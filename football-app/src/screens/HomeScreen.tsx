@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { Alert, StyleSheet, Text, View, ScrollView, TouchableOpacity } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { CompositeNavigationProp } from '@react-navigation/native';
@@ -26,11 +26,35 @@ interface HomeScreenProps {
   navigation: HomeScreenNavigationProp;
 }
 
-const quickActions = [
-  { label: 'Manage teams', description: 'Edit rosters & tactics', route: 'Team' as const },
-  { label: 'Create team', description: 'Spin up a new squad', route: 'CreateTeam' as const },
-  { label: 'Join tournaments', description: 'Enter upcoming events', route: 'Tournaments' as const },
-  { label: 'Update profile', description: 'Refresh details & premium', route: 'Profile' as const },
+type QuickAction =
+  | {
+      label: string;
+      description: string;
+      action: { type: 'tab'; route: Extract<keyof AuthenticatedTabParamList, 'ManageTeams' | 'Tournaments' | 'Profile'> };
+    }
+  | { label: string; description: string; action: { type: 'stack'; route: Extract<keyof RootStackParamList, 'CreateTeam'> } };
+
+const quickActions: QuickAction[] = [
+  {
+    label: 'Manage teams',
+    description: 'Edit rosters & tactics',
+    action: { type: 'tab', route: 'ManageTeams' },
+  },
+  {
+    label: 'Create team',
+    description: 'Spin up a new squad',
+    action: { type: 'stack', route: 'CreateTeam' },
+  },
+  {
+    label: 'Join tournaments',
+    description: 'Enter upcoming events',
+    action: { type: 'tab', route: 'Tournaments' },
+  },
+  {
+    label: 'Update profile',
+    description: 'Refresh details & premium',
+    action: { type: 'tab', route: 'Profile' },
+  },
 ];
 
 const featureHighlights = [
@@ -92,23 +116,88 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     }
   };
 
+  const handleQuickActionPress = (action: QuickAction) => {
+    if (action.action.type === 'tab') {
+      navigation.navigate(action.action.route);
+    } else {
+      navigation.navigate(action.action.route);
+    }
+  };
+
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Welcome to the Football App!</Text>
-        <Text style={styles.subtitle}>{welcomeMessage}</Text>
-        <View style={styles.buttonGroup}>
-          <View style={styles.buttonWrapper}>
-            <Button title="Manage Teams" onPress={() => navigation.navigate('ManageTeams')} />
+    <AuthenticatedScreenContainer style={styles.safeArea} contentStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        testID="home-screen-scroll"
+      >
+        <View style={styles.heroCard}>
+          <Text style={styles.eyebrow}>Matchday brief</Text>
+          <Text style={styles.heroTitle}>Welcome to the Football App!</Text>
+          <Text style={styles.helperText}>{welcomeMessage}</Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Quick actions</Text>
+          <View style={styles.quickActionGrid}>
+            {quickActions.map((item) => (
+              <TouchableOpacity
+                key={item.label}
+                style={styles.quickActionCard}
+                onPress={() => handleQuickActionPress(item)}
+                accessibilityRole="button"
+              >
+                <Text style={styles.quickActionLabel}>{item.label}</Text>
+                <Text style={styles.quickActionDescription}>{item.description}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
-          <View style={styles.buttonWrapper}>
-            <Button title="Create a Team" onPress={() => navigation.navigate('CreateTeam')} />
-          </View>
-          <View style={styles.buttonWrapper}>
-            <Button title="Join Tournaments" onPress={() => navigation.navigate('Tournaments')} />
-          </View>
-          <View style={styles.buttonWrapper}>
-            <Button title="Profile" onPress={() => navigation.navigate('Profile')} />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Weekly challenges</Text>
+          <View style={styles.challengeList}>
+            {challenges.map((challenge) => {
+              const isCompleted = challenge.status === 'completed';
+              const isClaimed = challenge.status === 'claimed';
+
+              return (
+                <View key={challenge.id} style={styles.challengeCard}>
+                  <View style={styles.challengeHeader}>
+                    <Text style={styles.challengeTitle}>{challenge.title}</Text>
+                    <Text style={styles.challengeStatus}>{challenge.status.toUpperCase()}</Text>
+                  </View>
+                  <Text style={styles.challengeCopy}>{challenge.description}</Text>
+                  <Text style={styles.challengeMeta}>
+                    Reward:{' '}
+                    {challenge.reward.type === 'credits'
+                      ? `${challenge.reward.amount} credits`
+                      : `${challenge.reward.name} badge`}
+                  </Text>
+                  <View style={styles.challengeActions}>
+                    {challenge.status === 'available' && (
+                      <TouchableOpacity
+                        style={styles.challengeButton}
+                        onPress={() => handleCompleteChallenge(challenge.id)}
+                        accessibilityRole="button"
+                      >
+                        <Text style={styles.challengeButtonLabel}>Mark complete</Text>
+                      </TouchableOpacity>
+                    )}
+                    {isCompleted && (
+                      <TouchableOpacity
+                        style={[styles.challengeButton, styles.claimButton]}
+                        onPress={() => handleClaimReward(challenge.id)}
+                        accessibilityRole="button"
+                      >
+                        <Text style={[styles.challengeButtonLabel, styles.claimButtonLabel]}>Claim reward</Text>
+                      </TouchableOpacity>
+                    )}
+                    {isClaimed && <Text style={styles.claimedLabel}>Reward collected</Text>}
+                  </View>
+                </View>
+              );
+            })}
           </View>
         </View>
 
@@ -142,8 +231,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
+    flex: 1,
     backgroundColor: '#eef2ff',
+  },
+  content: {
+    flex: 1,
   },
   scrollContent: {
     paddingVertical: 24,
@@ -163,7 +256,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#bfdbfe',
   },
-  title: {
+  heroTitle: {
     fontSize: 26,
     fontWeight: '700',
     color: '#ffffff',
@@ -214,6 +307,68 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#1d4ed8',
   },
+  challengeList: {
+    gap: 12,
+  },
+  challengeCard: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    gap: 12,
+  },
+  challengeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  challengeTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1f2937',
+  },
+  challengeStatus: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#2563eb',
+  },
+  challengeCopy: {
+    fontSize: 14,
+    color: '#334155',
+    lineHeight: 20,
+  },
+  challengeMeta: {
+    fontSize: 12,
+    color: '#64748b',
+  },
+  challengeActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  challengeButton: {
+    backgroundColor: '#1e3a8a',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+  },
+  challengeButtonLabel: {
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+  claimButton: {
+    backgroundColor: '#22c55e',
+  },
+  claimButtonLabel: {
+    color: '#052e16',
+  },
+  claimedLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#16a34a',
+    alignSelf: 'center',
+  },
   featureList: {
     gap: 12,
   },
@@ -249,79 +404,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#1f2937',
     lineHeight: 18,
-  },
-  challengeSection: {
-    marginTop: 32,
-    width: '100%',
-    gap: 16,
-    backgroundColor: '#fef3c7',
-    borderRadius: 20,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#fcd34d',
-  },
-  challengeHeading: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#92400e',
-  },
-  challengeSubtitle: {
-    color: '#b45309',
-    fontSize: 13,
-  },
-  challengeCard: {
-    backgroundColor: '#fff7ed',
-    borderRadius: 16,
-    padding: 16,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: '#fed7aa',
-  },
-  challengeDetails: {
-    gap: 6,
-  },
-  challengeTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#9a3412',
-  },
-  challengeDescription: {
-    color: '#7c2d12',
-    fontSize: 13,
-  },
-  challengeMeta: {
-    fontSize: 12,
-    color: '#b45309',
-  },
-  challengeActions: {
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'center',
-    flexWrap: 'wrap',
-  },
-  challengeButton: {
-    borderRadius: 999,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-  },
-  challengePrimary: {
-    backgroundColor: '#f97316',
-  },
-  challengeButtonText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 13,
-    textTransform: 'uppercase',
-  },
-  claimedBadge: {
-    backgroundColor: '#bbf7d0',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-  },
-  claimedBadgeText: {
-    color: '#166534',
-    fontWeight: '700',
   },
 });
 
