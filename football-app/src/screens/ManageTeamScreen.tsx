@@ -43,6 +43,11 @@ import {
   selectOpenPositionsForTeam,
   updateOpenPositionStatus,
 } from '../store/slices/scoutingSlice';
+import {
+  DiscoveredTeam,
+  TeamDiscoveryScope,
+  searchTeams,
+} from '../services/teamDiscovery';
 
 type ManageTeamRouteProp = RouteProp<RootStackParamList, 'ManageTeam'>;
 type ManageTeamNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ManageTeam'>;
@@ -108,6 +113,11 @@ const ManageTeamScreen: React.FC = () => {
     'competitive',
   );
   const [positionDescription, setPositionDescription] = useState('');
+  const [searchScope, setSearchScope] = useState<TeamDiscoveryScope>('local');
+  const [teamSearchQuery, setTeamSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<DiscoveredTeam[]>([]);
+  const [isSearchingTeams, setIsSearchingTeams] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   useEffect(() => {
     if (team) {
