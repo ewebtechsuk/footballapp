@@ -67,6 +67,12 @@
     "react-redux",
     "redux"
   ],
+  "optionalShims": [
+    "@react-native-async-storage/async-storage",
+    "react-native-google-mobile-ads",
+    "react-native-iap",
+    "react-navigation"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/yourusername/football-app.git"
