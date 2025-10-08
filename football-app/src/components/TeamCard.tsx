@@ -3,18 +3,50 @@ import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 
 import type { Team } from '../store/slices/teamsSlice';
 
+interface TeamRecordSummary {
+  wins: number;
+  draws: number;
+  losses: number;
+}
+
 interface TeamCardProps {
   team: Team;
   onRemove: () => void;
   onManage: () => void;
+  record?: TeamRecordSummary;
+  nextFixtureLabel?: string;
 }
 
 
-const TeamCard: React.FC<TeamCardProps> = ({ team, onRemove, onManage }) => {
+const TeamCard: React.FC<TeamCardProps> = ({
+  team,
+  onRemove,
+  onManage,
+  record,
+  nextFixtureLabel,
+}) => {
+  const hasRecord = record && (record.wins > 0 || record.draws > 0 || record.losses > 0);
+
   return (
     <View style={styles.card}>
       <Text style={styles.name}>{team.name}</Text>
       <Text style={styles.memberCount}>{team.members.length} members</Text>
+
+      {hasRecord ? (
+        <View style={styles.recordRow}>
+          <Text style={styles.recordLabel}>Record</Text>
+          <Text style={styles.recordValue}>
+            {record?.wins ?? 0}-{record?.draws ?? 0}-{record?.losses ?? 0}
+          </Text>
+        </View>
+      ) : null}
+
+      {nextFixtureLabel ? (
+        <View style={styles.fixtureRow}>
+          <Text style={styles.fixtureLabel}>Next kickoff</Text>
+          <Text style={styles.fixtureValue}>{nextFixtureLabel}</Text>
+        </View>
+      ) : null}
 
       <View style={styles.actions}>
         <TouchableOpacity onPress={onManage} style={[styles.button, styles.manageButton]}>
@@ -48,6 +80,39 @@ const styles = StyleSheet.create({
   memberCount: {
     color: '#6b7280',
     marginBottom: 12,
+  },
+  recordRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  recordLabel: {
+    fontSize: 12,
+    color: '#475569',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  recordValue: {
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  fixtureRow: {
+    marginTop: 4,
+    backgroundColor: '#eff6ff',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  fixtureLabel: {
+    fontSize: 12,
+    color: '#1d4ed8',
+    marginBottom: 2,
+    fontWeight: '600',
+  },
+  fixtureValue: {
+    fontSize: 14,
+    color: '#1e293b',
   },
   actions: {
     flexDirection: 'row',

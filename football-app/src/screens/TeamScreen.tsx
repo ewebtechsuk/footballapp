@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, View, Text, FlatList, Button } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -10,6 +10,13 @@ import { defaultBannerSize, teamBannerAdUnitId } from '../config/ads';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { removeTeam, Team } from '../store/slices/teamsSlice';
 import { RootStackParamList } from '../types/navigation';
+import {
+  formatKickoffTime,
+  getFixtureStartDate,
+  selectFixturesByTeam,
+  selectNextFixtureForTeam,
+  selectTeamRecord,
+} from '../store/slices/scheduleSlice';
 
 type TeamScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Team'>;
 
@@ -19,6 +26,58 @@ const TeamScreen: React.FC = () => {
   const teams = useAppSelector((state) => state.teams.teams);
   const isPremium = useAppSelector((state) => state.premium.entitled);
   const navigation = useNavigation<TeamScreenNavigationProp>();
+  const scheduleSummary = useAppSelector((state) => {
+    const summary: Record<
+      string,
+      {
+        record: { wins: number; draws: number; losses: number };
+        nextFixtureLabel?: string;
+        upcomingFixtures: ReturnType<typeof selectFixturesByTeam>;
+      }
+    > = {};
+
+    state.teams.teams.forEach((team) => {
+      const record = selectTeamRecord(state, team.id);
+      const nextFixture = selectNextFixtureForTeam(state, team.id);
+      const upcomingFixtures = selectFixturesByTeam(state, team.id).filter(
+        (fixture) => fixture.status !== 'completed',
+      );
+
+      let nextFixtureLabel: string | undefined;
+      if (nextFixture) {
+        const kickoffOption = nextFixture.acceptedKickoffOptionId
+          ? nextFixture.kickoffOptions.find(
+              (option) => option.id === nextFixture.acceptedKickoffOptionId,
+            )
+          : nextFixture.kickoffOptions
+              .slice()
+              .sort((a, b) => new Date(a.isoTime).getTime() - new Date(b.isoTime).getTime())[0];
+
+        if (kickoffOption) {
+          nextFixtureLabel = `${nextFixture.opponent} • ${formatKickoffTime(kickoffOption.isoTime)}`;
+        } else {
+          nextFixtureLabel = nextFixture.opponent;
+        }
+      }
+
+      summary[team.id] = {
+        record,
+        nextFixtureLabel,
+        upcomingFixtures,
+      };
+    });
+
+    return summary;
+  });
+
+  const featuredTeamFixtures = useMemo(() => {
+    if (teams.length === 0) {
+      return [];
+    }
+
+    const firstTeam = teams[0];
+    return scheduleSummary[firstTeam.id]?.upcomingFixtures ?? [];
+  }, [scheduleSummary, teams]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -33,10 +92,72 @@ const TeamScreen: React.FC = () => {
               team={item}
               onRemove={() => dispatch(removeTeam(item.id))}
               onManage={() => navigation.navigate('ManageTeam', { teamId: item.id })}
+              record={scheduleSummary[item.id]?.record}
+              nextFixtureLabel={scheduleSummary[item.id]?.nextFixtureLabel}
             />
           )}
           ListEmptyComponent={<Text style={styles.emptyText}>Create your first team to get started.</Text>}
         />
+
+        {teams.length > 0 ? (
+          <View style={styles.scheduleSection}>
+            <Text style={styles.scheduleTitle}>Upcoming fixtures</Text>
+            <Text style={styles.scheduleSubtitle}>
+              Captains can manage kickoff votes and calendar sync from the Manage Team screen.
+            </Text>
+            {featuredTeamFixtures.length === 0 ? (
+              <Text style={styles.emptyScheduleText}>
+                No upcoming matches yet. Propose one to get the squad organised.
+              </Text>
+            ) : (
+              featuredTeamFixtures.slice(0, 3).map((fixture) => {
+                const kickoffOption = fixture.acceptedKickoffOptionId
+                  ? fixture.kickoffOptions.find(
+                      (option) => option.id === fixture.acceptedKickoffOptionId,
+                    )
+                  : fixture.kickoffOptions
+                      .slice()
+                      .sort(
+                        (a, b) => new Date(a.isoTime).getTime() - new Date(b.isoTime).getTime(),
+                      )[0];
+
+                const kickoffLabel = kickoffOption
+                  ? formatKickoffTime(kickoffOption.isoTime)
+                  : 'Kickoff TBC';
+                const kickoffDate = getFixtureStartDate(fixture);
+                const relativeLabel = kickoffDate
+                  ? kickoffDate.toLocaleDateString(undefined, {
+                      weekday: 'short',
+                      month: 'short',
+                      day: 'numeric',
+                    })
+                  : 'Awaiting votes';
+
+                return (
+                  <View key={fixture.id} style={styles.fixtureCard}>
+                    <Text style={styles.fixtureOpponent}>{fixture.opponent}</Text>
+                    <Text style={styles.fixtureMeta}>{fixture.location}</Text>
+                    <Text style={styles.fixtureMeta}>{relativeLabel}</Text>
+                    <Text style={styles.fixtureKickoff}>{kickoffLabel}</Text>
+                    <Text style={styles.fixtureStatus}>
+                      {fixture.status === 'proposed'
+                        ? 'Voting in progress'
+                        : fixture.status === 'scheduled'
+                        ? fixture.calendarSynced
+                          ? 'Synced to calendar'
+                          : 'Ready to sync'
+                        : 'Result recorded'}
+                    </Text>
+                  </View>
+                );
+              })
+            )}
+            <Button
+              title="Manage scheduling"
+              onPress={() => navigation.navigate('ManageTeam', { teamId: teams[0].id })}
+            />
+          </View>
+        ) : null}
 
         <View style={styles.analyticsSection}>
           <Text style={styles.analyticsTitle}>Team analytics</Text>
@@ -95,6 +216,58 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e2e8f0',
     gap: 16,
+  },
+  scheduleSection: {
+    marginVertical: 16,
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: '#fff7ed',
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+    gap: 16,
+  },
+  scheduleTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#9a3412',
+  },
+  scheduleSubtitle: {
+    fontSize: 13,
+    color: '#c2410c',
+    lineHeight: 18,
+  },
+  emptyScheduleText: {
+    fontSize: 14,
+    color: '#b45309',
+  },
+  fixtureCard: {
+    borderRadius: 12,
+    padding: 12,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+    gap: 4,
+  },
+  fixtureOpponent: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#7c2d12',
+  },
+  fixtureMeta: {
+    fontSize: 13,
+    color: '#b45309',
+  },
+  fixtureKickoff: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#92400e',
+  },
+  fixtureStatus: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#9a3412',
+    fontWeight: '600',
+    textTransform: 'uppercase',
   },
   analyticsTitle: {
     fontSize: 18,

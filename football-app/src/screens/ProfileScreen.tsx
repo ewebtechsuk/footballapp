@@ -68,6 +68,7 @@ import {
 import type { RootStackParamList } from '../types/navigation';
 import { detectBiometricSupport, requestBiometricAuthentication } from '../services/biometricAuth';
 import type { BiometricSupport } from '../services/biometricAuth';
+import { generateTrainingPlans } from '../services/trainingPlans';
 
 const sanitizeProfile = (profile: ProfileState): ProfileState => ({
   fullName: profile.fullName.trim(),
@@ -158,6 +159,10 @@ const ProfileScreen: React.FC = () => {
   const [checkingBiometricSupport, setCheckingBiometricSupport] = useState(false);
   const [biometricSupport, setBiometricSupport] = useState<BiometricSupport | null>(null);
   const [updatingBiometrics, setUpdatingBiometrics] = useState(false);
+  const trainingRecommendations = useMemo(
+    () => generateTrainingPlans(profileForm, premium.entitled),
+    [profileForm, premium.entitled],
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -1086,6 +1091,47 @@ const ProfileScreen: React.FC = () => {
           )}
         </View>
 
+        <View style={styles.trainingSection}>
+          <Text style={styles.trainingHeading}>Personalised training plans</Text>
+          <Text style={styles.trainingSubtitle}>
+            Tailored sessions based on your profile, location, and premium access.
+          </Text>
+
+          {trainingRecommendations.unlocked.map((plan) => (
+            <View key={plan.id} style={styles.trainingCard}>
+              <View style={styles.trainingHeader}>
+                <Text style={styles.trainingTitle}>{plan.title}</Text>
+                <Text style={styles.trainingFocus}>{plan.focus.toUpperCase()}</Text>
+              </View>
+              <Text style={styles.trainingSummary}>{plan.summary}</Text>
+              <View style={styles.trainingTipList}>
+                {plan.tips.map((tip) => (
+                  <Text key={tip} style={styles.trainingTip}>
+                    • {tip}
+                  </Text>
+                ))}
+              </View>
+            </View>
+          ))}
+
+          {trainingRecommendations.locked.length > 0 ? (
+            <View style={styles.lockedTrainingCard}>
+              <Text style={styles.lockedTitle}>Premium-only insights</Text>
+              {trainingRecommendations.locked.map((plan) => (
+                <Text key={plan.id} style={styles.lockedSummary}>
+                  {plan.title} — unlock with Premium
+                </Text>
+              ))}
+              <TouchableOpacity
+                style={styles.lockedCta}
+                onPress={() => navigation.navigate('Profile')}
+              >
+                <Text style={styles.lockedCtaText}>View membership options</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+        </View>
+
         <View style={styles.walletCard}>
           <Text style={styles.walletLabel}>Wallet credits</Text>
           <Text style={styles.walletValue}>{walletSummary.balance}</Text>
@@ -1571,6 +1617,84 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: '#fff',
     fontWeight: '600',
+  },
+  trainingSection: {
+    marginTop: 24,
+    gap: 16,
+    backgroundColor: '#eef2ff',
+    borderRadius: 20,
+    padding: 20,
+  },
+  trainingHeading: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1d4ed8',
+  },
+  trainingSubtitle: {
+    fontSize: 13,
+    color: '#1e3a8a',
+  },
+  trainingCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: '#c7d2fe',
+  },
+  trainingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  trainingTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1d4ed8',
+  },
+  trainingFocus: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#4338ca',
+  },
+  trainingSummary: {
+    color: '#1e293b',
+    fontSize: 13,
+  },
+  trainingTipList: {
+    gap: 4,
+  },
+  trainingTip: {
+    color: '#1e293b',
+    fontSize: 12,
+  },
+  lockedTrainingCard: {
+    backgroundColor: '#ede9fe',
+    borderRadius: 16,
+    padding: 16,
+    gap: 8,
+  },
+  lockedTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#4c1d95',
+  },
+  lockedSummary: {
+    fontSize: 12,
+    color: '#4c1d95',
+  },
+  lockedCta: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    backgroundColor: '#4c1d95',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+  },
+  lockedCtaText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 12,
   },
   walletCard: {
     backgroundColor: '#f3f4f6',
