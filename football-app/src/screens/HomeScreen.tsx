@@ -66,8 +66,8 @@ const designOpportunities = [
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const dispatch = useAppDispatch();
   const currentUser = useAppSelector(selectCurrentUser);
-  const challenges = useAppSelector(selectActiveChallenges);
-  const greetingName = currentUser?.fullName.split(' ')[0] ?? 'coach';
+  const greetingName =
+    currentUser?.fullName?.trim().split(/\s+/)[0] ?? 'coach';
   const welcomeMessage = currentUser
     ? `Ready for another matchday, ${greetingName}?`
     : 'Sign in to unlock the full football experience.';
