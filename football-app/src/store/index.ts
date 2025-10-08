@@ -14,6 +14,8 @@ import transferMarketReducer from './slices/transferMarketSlice';
 import playerDevelopmentReducer from './slices/playerDevelopmentSlice';
 import communityReducer from './slices/communitySlice';
 import mediaReducer from './slices/mediaSlice';
+import kitDesignReducer from './slices/kitDesignSlice';
+import teamChatReducer from './slices/teamChatSlice';
 import { authReducer } from './slices/authSlice';
 import { adminReducer } from './slices/adminSlice';
 
@@ -35,6 +37,8 @@ export const store = configureStore({
     playerDevelopment: playerDevelopmentReducer,
     community: communityReducer,
     media: mediaReducer,
+    kitDesign: kitDesignReducer,
+    teamChat: teamChatReducer,
 
   },
 });

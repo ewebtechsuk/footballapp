@@ -26,6 +26,8 @@ import {
 } from '../store/slices/teamsSlice';
 import AuthenticatedScreenContainer from '../components/AuthenticatedScreenContainer';
 import PitchFormation from '../components/PitchFormation';
+import KitDesignBoard from '../components/KitDesignBoard';
+import TeamChatPanel from '../components/TeamChatPanel';
 import {
   acceptFixtureKickoff,
   formatKickoffTime,
@@ -1313,6 +1315,24 @@ const ManageTeamScreen: React.FC = () => {
                 })
             )}
           </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Kit identity</Text>
+          <Text style={styles.sectionSubtitle}>
+            Spin up AI-powered designs, collect structured feedback, and hand off final assets to production without
+            leaving the app.
+          </Text>
+          <KitDesignBoard teamId={teamId} teamName={team.name} />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Live chat control room</Text>
+          <Text style={styles.sectionSubtitle}>
+            Keep design debates, matchday logistics, and squad-wide announcements organised with contextual threads and
+            polls.
+          </Text>
+          <TeamChatPanel teamId={teamId} />
         </View>
 
         <View style={styles.section}>
