@@ -28,8 +28,10 @@ This plan converts the outstanding items from [`publishing-status.md`](./publish
    - Choose the Android `applicationId` and iOS bundle identifier; update the respective project files.
    - Generate production signing keys/certificates and document secure storage.
 8. **Prepare environment configuration**
-   - Replace placeholder values in `.env.example` with production-ready variables.
+   - Follow the environment setup workflow in [`football-app/README.md`](../football-app/README.md) to copy the template `.env.example` into a local `.env.local` file.
+   - Populate `.env.local` (and the CI/CD secret stores) with production-ready variables while keeping `.env.example` sanitized for onboarding and documentation purposes.
    - Establish secrets management for CI/CD and local release builds.
+   - **Note:** Never commit production credentials to the repository—use secure secret management tooling to distribute and rotate sensitive values.
 9. **Define permission and privacy disclosures**
    - Draft justifications for each platform permission.
    - Prepare the data collection/usage responses needed for privacy labels on both stores.
