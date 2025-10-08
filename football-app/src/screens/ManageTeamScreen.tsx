@@ -11,7 +11,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -25,6 +24,7 @@ import {
   defaultTeamSettings,
   updateTeam,
 } from '../store/slices/teamsSlice';
+import AuthenticatedScreenContainer from '../components/AuthenticatedScreenContainer';
 import PitchFormation from '../components/PitchFormation';
 import {
   acceptFixtureKickoff,
@@ -751,30 +751,30 @@ const ManageTeamScreen: React.FC = () => {
 
   if (!teamId) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.content}>
+      <AuthenticatedScreenContainer style={styles.safeArea} contentStyle={styles.messageContainer}>
+        <View style={styles.messageCard}>
           <Text style={styles.title}>Team unavailable</Text>
           <Text style={styles.subtitle}>
             We could not determine which team you wanted to manage. Please go back and try again.
           </Text>
         </View>
-      </SafeAreaView>
+      </AuthenticatedScreenContainer>
     );
   }
 
   if (!team) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.content}>
+      <AuthenticatedScreenContainer style={styles.safeArea} contentStyle={styles.messageContainer}>
+        <View style={styles.messageCard}>
           <Text style={styles.title}>Team not found</Text>
           <Text style={styles.subtitle}>The team you are trying to manage could not be located.</Text>
         </View>
-      </SafeAreaView>
+      </AuthenticatedScreenContainer>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <AuthenticatedScreenContainer style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.section}>
           <Text style={styles.title}>Team details</Text>
@@ -1694,7 +1694,7 @@ const ManageTeamScreen: React.FC = () => {
           <Text style={styles.saveButtonText}>Save changes</Text>
         </TouchableOpacity>
       </ScrollView>
-    </SafeAreaView>
+    </AuthenticatedScreenContainer>
   );
 };
 
@@ -1703,11 +1703,22 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8fafc',
   },
-  content: {
+  messageContainer: {
     flex: 1,
-    padding: 24,
     justifyContent: 'center',
+    padding: 24,
+  },
+  messageCard: {
     backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    gap: 12,
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   scrollContent: {
     padding: 24,

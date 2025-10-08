@@ -36,3 +36,15 @@ If a full chat rollout feels heavy, explore lighter-weight communication feature
 - **Integrations:** Provide quick-share to WhatsApp/Telegram for teams that already coordinate externally, while capturing feedback to iterate on native chat.
 
 Starting with contextual messaging tied to scheduling delivers the highest immediate value and creates a natural upgrade path toward richer, premium-ready communication tools.
+
+## Recent Product Improvements
+- **Persistent navigation shell:** Added a universal bottom navigation bar so logged-in members can jump between Home, Teams, Tournaments, Profile, and (when applicable) Admin at any time without losing context.
+- **Home experience refresh:** Restructured the dashboard with scrollable quick actions, richer feature highlights, and surfaced design opportunities inspired by the latest feature roll-out.
+- **Screen scaffolding:** Updated team, tournament, profile, and admin management areas to share a consistent layout that leaves room for future contextual messaging panels or scheduling widgets.
+
+## Additional Feature & Design Opportunities
+- **Clubhouse timeline:** Give each team a shareable feed of match reports, training notes, and scouting updates. Pair timeline posts with inline reactions to keep engagement high without requiring full chat replies.
+- **Broadcast studio:** Layer a lightweight live commentary mode on top of match scheduling so analysts can post real-time updates for remote supporters. Replay highlights could be saved as stories inside the Home experience.
+- **Kit designer and badge vault:** Offer customisable kits and crest templates with colour pickers, unlockable via premium or tournament wins, to reinforce club identity across the app.
+- **Match insights storyboard:** Visualise squad momentum, fatigue, and opponent tendencies with card-based storytelling. These could animate subtly when new analytics arrive after a recorded match.
+- **Immersive theming:** Introduce alternate themes (e.g., “Stadium Lights” dark mode, “Academy Daylight” pastel mode) and allow team captains to assign team-specific accent colours that propagate to cards, charts, and the persistent navigation bar.
