@@ -1,9 +1,9 @@
 import React from 'react';
 import { StyleSheet, View, Text, FlatList, Button } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 
+import AuthenticatedScreenContainer from '../components/AuthenticatedScreenContainer';
 import TeamCard from '../components/TeamCard';
 import BannerAdSlot from '../components/BannerAdSlot';
 import { defaultBannerSize, teamBannerAdUnitId } from '../config/ads';
@@ -21,46 +21,44 @@ const TeamScreen: React.FC = () => {
   const navigation = useNavigation<TeamScreenNavigationProp>();
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.content}>
-        <Text style={styles.title}>My Teams</Text>
-        <FlatList
-          data={teams}
-          keyExtractor={(item: Team) => item.id}
-          contentContainerStyle={styles.listContent}
-          renderItem={({ item }: { item: Team }) => (
-            <TeamCard
-              team={item}
-              onRemove={() => dispatch(removeTeam(item.id))}
-              onManage={() => navigation.navigate('ManageTeam', { teamId: item.id })}
-            />
-          )}
-          ListEmptyComponent={<Text style={styles.emptyText}>Create your first team to get started.</Text>}
-        />
+    <AuthenticatedScreenContainer style={styles.safeArea} contentStyle={styles.content}>
+      <Text style={styles.title}>My Teams</Text>
+      <FlatList
+        data={teams}
+        keyExtractor={(item: Team) => item.id}
+        contentContainerStyle={styles.listContent}
+        renderItem={({ item }: { item: Team }) => (
+          <TeamCard
+            team={item}
+            onRemove={() => dispatch(removeTeam(item.id))}
+            onManage={() => navigation.navigate('ManageTeam', { teamId: item.id })}
+          />
+        )}
+        ListEmptyComponent={<Text style={styles.emptyText}>Create your first team to get started.</Text>}
+      />
 
-        <View style={styles.analyticsSection}>
-          <Text style={styles.analyticsTitle}>Team analytics</Text>
-          {isPremium ? (
-            <View style={styles.analyticsContent}>
-              <Text style={styles.analyticsMetric}>Form (last 5): W • W • D • L • W</Text>
-              <Text style={styles.analyticsMetric}>Projected seed: #3 in current tournament</Text>
-              <Text style={styles.analyticsHint}>
-                These insights refresh automatically after each recorded match.
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.analyticsUpsell}>
-              <Text style={styles.analyticsUpsellText}>
-                Upgrade to Football App Premium to unlock match insights and projections.
-              </Text>
-              <Button title="View premium" onPress={() => navigation.navigate('Profile')} />
-            </View>
-          )}
-        </View>
-        <Button title="Create New Team" onPress={() => navigation.navigate('CreateTeam')} />
+      <View style={styles.analyticsSection}>
+        <Text style={styles.analyticsTitle}>Team analytics</Text>
+        {isPremium ? (
+          <View style={styles.analyticsContent}>
+            <Text style={styles.analyticsMetric}>Form (last 5): W • W • D • L • W</Text>
+            <Text style={styles.analyticsMetric}>Projected seed: #3 in current tournament</Text>
+            <Text style={styles.analyticsHint}>
+              These insights refresh automatically after each recorded match.
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.analyticsUpsell}>
+            <Text style={styles.analyticsUpsellText}>
+              Upgrade to Football App Premium to unlock match insights and projections.
+            </Text>
+            <Button title="View premium" onPress={() => navigation.navigate('Profile')} />
+          </View>
+        )}
       </View>
+      <Button title="Create New Team" onPress={() => navigation.navigate('CreateTeam')} />
       <BannerAdSlot unitId={teamBannerAdUnitId} size={defaultBannerSize} />
-    </SafeAreaView>
+    </AuthenticatedScreenContainer>
   );
 };
 
@@ -70,9 +68,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9fafb',
   },
   content: {
-    flex: 1,
     paddingHorizontal: 16,
     paddingTop: 16,
+    gap: 16,
   },
   title: {
     fontSize: 24,

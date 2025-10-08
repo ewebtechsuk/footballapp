@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ActivityIndicator,
   Alert,
@@ -19,6 +18,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { Product, ProductPurchase, PurchaseError } from 'react-native-iap';
 
+import AuthenticatedScreenContainer from '../components/AuthenticatedScreenContainer';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { creditWallet } from '../store/slices/walletSlice';
 import type {
@@ -751,7 +751,7 @@ const ProfileScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <AuthenticatedScreenContainer style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <Text style={styles.title}>Profile</Text>
@@ -1274,7 +1274,7 @@ const ProfileScreen: React.FC = () => {
           </View>
         </Modal>
       )}
-    </SafeAreaView>
+    </AuthenticatedScreenContainer>
   );
 };
 
@@ -1287,6 +1287,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: 24,
     gap: 24,
+    paddingBottom: 48,
   },
   header: {
     alignItems: 'center',

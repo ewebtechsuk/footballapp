@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { StyleSheet, View, Text, Button, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRewardedAd } from 'react-native-google-mobile-ads';
 
 import { tournamentRewardedAdUnitId } from '../config/ads';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { creditWallet } from '../store/slices/walletSlice';
+import AuthenticatedScreenContainer from '../components/AuthenticatedScreenContainer';
 
 const FALLBACK_REWARD_AMOUNT = 5;
 
@@ -53,40 +53,37 @@ const TournamentScreen: React.FC = () => {
   }, [error]);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Tournaments</Text>
-        <Text style={styles.subtitle}>Earn credits to enter premium tournaments.</Text>
+    <AuthenticatedScreenContainer style={styles.safeArea} contentStyle={styles.content}>
+      <Text style={styles.title}>Tournaments</Text>
+      <Text style={styles.subtitle}>Earn credits to enter premium tournaments.</Text>
 
-        <View style={styles.rewardCard}>
-          <Text style={styles.rewardTitle}>Wallet Balance</Text>
-          <Text style={styles.rewardAmount}>{credits} credits</Text>
-          <Button
-            title={isLoaded ? 'Watch to earn entry credits' : 'Load rewarded ad'}
-            onPress={handleWatchToEarn}
-          />
-          {!isLoaded && (
-            <Text style={styles.helperText}>Tap the button again if the ad is still loading.</Text>
-          )}
-        </View>
-
-        {isPremium ? (
-          <View style={styles.premiumInsights}>
-            <Text style={styles.premiumInsightsTitle}>Premium tournament insights</Text>
-            <Text style={styles.premiumInsightsDetail}>Next best event: Elite Cup (opens in 3 days)</Text>
-            <Text style={styles.premiumInsightsDetail}>Recommended entry fee budget: 120 credits</Text>
-          </View>
-        ) : (
-          <View style={styles.premiumUpsell}>
-            <Text style={styles.premiumUpsellText}>
-              Premium members get tournament recommendations tailored to their squad. Unlock from
-              the Profile screen.
-            </Text>
-          </View>
+      <View style={styles.rewardCard}>
+        <Text style={styles.rewardTitle}>Wallet Balance</Text>
+        <Text style={styles.rewardAmount}>{credits} credits</Text>
+        <Button
+          title={isLoaded ? 'Watch to earn entry credits' : 'Load rewarded ad'}
+          onPress={handleWatchToEarn}
+        />
+        {!isLoaded && (
+          <Text style={styles.helperText}>Tap the button again if the ad is still loading.</Text>
         )}
       </View>
-    </SafeAreaView>
 
+      {isPremium ? (
+        <View style={styles.premiumInsights}>
+          <Text style={styles.premiumInsightsTitle}>Premium tournament insights</Text>
+          <Text style={styles.premiumInsightsDetail}>Next best event: Elite Cup (opens in 3 days)</Text>
+          <Text style={styles.premiumInsightsDetail}>Recommended entry fee budget: 120 credits</Text>
+        </View>
+      ) : (
+        <View style={styles.premiumUpsell}>
+          <Text style={styles.premiumUpsellText}>
+            Premium members get tournament recommendations tailored to their squad. Unlock from the
+            Profile screen.
+          </Text>
+        </View>
+      )}
+    </AuthenticatedScreenContainer>
   );
 };
 
@@ -96,8 +93,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   content: {
-    flex: 1,
     padding: 24,
+    gap: 20,
   },
   title: {
     fontSize: 28,

@@ -10,7 +10,6 @@ import {
   View,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { RootStackParamList } from '../types/navigation';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
@@ -32,6 +31,7 @@ import {
   updatePaymentStatus,
 } from '../store/slices/adminSlice';
 import type { MarketingAudience, PaymentStatus } from '../types/admin';
+import AuthenticatedScreenContainer from '../components/AuthenticatedScreenContainer';
 
 interface AdminDashboardScreenProps {
   navigation: NativeStackNavigationProp<RootStackParamList, 'AdminDashboard'>;
@@ -208,7 +208,7 @@ const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ navigation 
 
   if (!currentUser || currentUser.role !== 'admin') {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <AuthenticatedScreenContainer style={styles.safeArea} contentStyle={styles.centerContent}>
         <View style={styles.unauthorisedContainer}>
           <Text style={styles.unauthorisedTitle}>Access restricted</Text>
           <Text style={styles.unauthorisedText}>
@@ -218,23 +218,23 @@ const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ navigation 
             <Text style={styles.backButtonText}>Go back</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </AuthenticatedScreenContainer>
     );
   }
 
   if (!adminInitialized || adminLoading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <AuthenticatedScreenContainer style={styles.safeArea} contentStyle={styles.centerContent}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#2563eb" />
           <Text style={styles.loadingText}>Loading admin data…</Text>
         </View>
-      </SafeAreaView>
+      </AuthenticatedScreenContainer>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <AuthenticatedScreenContainer style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.screenTitle}>Admin centre</Text>
         <Text style={styles.screenSubtitle}>
@@ -568,7 +568,7 @@ const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ navigation 
           ))}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </AuthenticatedScreenContainer>
   );
 };
 
@@ -576,6 +576,12 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#f1f5f9',
+  },
+  centerContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
   },
   scrollContent: {
     padding: 24,
@@ -786,9 +792,8 @@ const styles = StyleSheet.create({
     color: '#f8fafc',
   },
   loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
+    gap: 12,
   },
   loadingText: {
     marginTop: 16,
@@ -799,10 +804,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   unauthorisedContainer: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    gap: 16,
   },
   unauthorisedTitle: {
     fontSize: 24,
