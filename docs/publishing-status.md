@@ -36,16 +36,23 @@ This document tracks the current completion status of each task in the mobile pu
 | Resolve pre-launch check warnings | Outstanding | No pre-launch reports captured. |
 | Submit for review and monitor approval | Outstanding | Submission has not been initiated. |
 
-## Apple App Store submission steps
+## Web deployment steps
 | Step | Status | Notes |
 | --- | --- | --- |
-| Create App Store Connect record with metadata | Outstanding | No App Store Connect metadata stored. |
-| Upload device screenshots and previews | Outstanding | Media assets are missing. |
-| Provide App Privacy responses and policy URL | Outstanding | Privacy disclosures not documented. |
-| Configure categories, age rating, content rights | Outstanding | Settings not recorded. |
-| Upload signed IPA build via Xcode/Transporter | Outstanding | No build artifacts tracked. |
-| Attach build to App Store version and add release notes | Outstanding | Not yet prepared. |
-| Submit for App Review and respond to feedback | Outstanding | Submission has not occurred. |
+| Provision Firebase Hosting credentials | Outstanding | Deploy workflow still fails because credentials have not been provided. |
+| Verify Node.js 20 pipeline and rerun deploy | Outstanding | Latest deploy run hit missing credential errors before validating Node 20. |
+| Document smoke-test checklist & production URL | Outstanding | No production deployment evidence is stored. |
+
+## Apple App Store submission steps *(deferred until after Google Play/web launch)*
+| Step | Status | Notes |
+| --- | --- | --- |
+| Create App Store Connect record with metadata | Outstanding | Work is intentionally queued until the Google Play/web launch stabilizes. |
+| Upload device screenshots and previews | Outstanding | Asset production continues but submission is deferred. |
+| Provide App Privacy responses and policy URL | Outstanding | Privacy disclosures being drafted for later submission. |
+| Configure categories, age rating, content rights | Outstanding | Settings will be defined when Apple submission window opens. |
+| Upload signed IPA build via Xcode/Transporter | Outstanding | Build pipeline not yet targeted because the App Store launch is deferred. |
+| Attach build to App Store version and add release notes | Outstanding | Release notes and build attachment scheduled post-Google Play launch. |
+| Submit for App Review and respond to feedback | Outstanding | Submission will occur after the Android/web release is live. |
 
 ## Post-launch maintenance
 | Item | Status | Notes |
