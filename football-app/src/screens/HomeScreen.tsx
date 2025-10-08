@@ -1,9 +1,8 @@
 import React, { useCallback, useMemo } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { CompositeNavigationProp } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { CompositeNavigationProp } from '@react-navigation/native';
 
 import AuthenticatedScreenContainer from '../components/AuthenticatedScreenContainer';
 import BannerAdSlot from '../components/BannerAdSlot';
@@ -194,14 +193,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     },
     [challenges, dispatch],
   );
-
-  const handleQuickActionPress = (action: QuickAction) => {
-    if (action.action.type === 'tab') {
-      navigation.navigate(action.action.route);
-    } else {
-      navigation.navigate(action.action.route);
-    }
-  };
 
   return (
     <AuthenticatedScreenContainer style={styles.container}>
