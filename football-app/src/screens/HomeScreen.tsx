@@ -122,8 +122,8 @@ const describeReward = (reward: Challenge['reward']): string => {
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const dispatch = useAppDispatch();
   const currentUser = useAppSelector(selectCurrentUser);
-  const challenges = useAppSelector(selectActiveChallenges);
-  const greetingName = currentUser?.fullName.split(' ')[0] ?? 'coach';
+  const greetingName =
+    currentUser?.fullName?.trim().split(/\s+/)[0] ?? 'coach';
   const welcomeMessage = currentUser
     ? `Ready for another matchday, ${greetingName}?`
     : 'Sign in to unlock the full football experience.';
@@ -146,6 +146,14 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       Alert.alert('Reward claimed', `You earned ${challenge.reward.amount} credits!`);
     } else {
       Alert.alert('Badge unlocked', `You collected the ${challenge.reward.name} badge.`);
+    }
+  };
+
+  const handleQuickActionPress = (action: QuickAction) => {
+    if (action.action.type === 'tab') {
+      navigation.navigate(action.action.route);
+    } else {
+      navigation.navigate(action.action.route);
     }
   };
 
@@ -264,8 +272,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
+    flex: 1,
     backgroundColor: '#eef2ff',
+  },
+  content: {
+    flex: 1,
   },
   scrollContent: {
     paddingVertical: 24,
@@ -285,7 +297,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#bfdbfe',
   },
-  title: {
+  heroTitle: {
     fontSize: 26,
     fontWeight: '700',
     color: '#ffffff',
@@ -336,6 +348,68 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#1d4ed8',
   },
+  challengeList: {
+    gap: 12,
+  },
+  challengeCard: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    gap: 12,
+  },
+  challengeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  challengeTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1f2937',
+  },
+  challengeStatus: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#2563eb',
+  },
+  challengeCopy: {
+    fontSize: 14,
+    color: '#334155',
+    lineHeight: 20,
+  },
+  challengeMeta: {
+    fontSize: 12,
+    color: '#64748b',
+  },
+  challengeActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  challengeButton: {
+    backgroundColor: '#1e3a8a',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+  },
+  challengeButtonLabel: {
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+  claimButton: {
+    backgroundColor: '#22c55e',
+  },
+  claimButtonLabel: {
+    color: '#052e16',
+  },
+  claimedLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#16a34a',
+    alignSelf: 'center',
+  },
   featureList: {
     gap: 12,
   },
@@ -371,79 +445,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#1f2937',
     lineHeight: 18,
-  },
-  challengeSection: {
-    marginTop: 32,
-    width: '100%',
-    gap: 16,
-    backgroundColor: '#fef3c7',
-    borderRadius: 20,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#fcd34d',
-  },
-  challengeHeading: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#92400e',
-  },
-  challengeSubtitle: {
-    color: '#b45309',
-    fontSize: 13,
-  },
-  challengeCard: {
-    backgroundColor: '#fff7ed',
-    borderRadius: 16,
-    padding: 16,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: '#fed7aa',
-  },
-  challengeDetails: {
-    gap: 6,
-  },
-  challengeTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#9a3412',
-  },
-  challengeDescription: {
-    color: '#7c2d12',
-    fontSize: 13,
-  },
-  challengeMeta: {
-    fontSize: 12,
-    color: '#b45309',
-  },
-  challengeActions: {
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'center',
-    flexWrap: 'wrap',
-  },
-  challengeButton: {
-    borderRadius: 999,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-  },
-  challengePrimary: {
-    backgroundColor: '#f97316',
-  },
-  challengeButtonText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 13,
-    textTransform: 'uppercase',
-  },
-  claimedBadge: {
-    backgroundColor: '#bbf7d0',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-  },
-  claimedBadgeText: {
-    color: '#166534',
-    fontWeight: '700',
   },
 });
 
