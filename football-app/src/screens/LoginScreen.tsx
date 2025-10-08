@@ -15,7 +15,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { RootStackParamList } from '../types/navigation';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { loginUser, selectAuthLoading } from '../store/slices/authSlice';
+import {
+  loginUser,
+  loginWithBiometrics,
+  selectAuthLoading,
+  selectBiometricEnabledUsers,
+} from '../store/slices/authSlice';
+import { detectBiometricSupport, requestBiometricAuthentication } from '../services/biometricAuth';
 
 interface LoginScreenProps {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Login'>;
@@ -24,9 +30,12 @@ interface LoginScreenProps {
 const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   const dispatch = useAppDispatch();
   const loading = useAppSelector(selectAuthLoading);
+  const biometricUsers = useAppSelector(selectBiometricEnabledUsers);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [biometricError, setBiometricError] = useState<string | null>(null);
+  const [biometricLoading, setBiometricLoading] = useState<string | null>(null);
 
   const handleSubmit = useCallback(async () => {
     if (!email.trim() || !password.trim()) {
@@ -44,6 +53,57 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
       setSubmitting(false);
     }
   }, [dispatch, email, password]);
+
+  const handleBiometricLogin = useCallback(
+    async (userId: string) => {
+      const targetUser = biometricUsers.find((user) => user.id === userId);
+      if (!targetUser) {
+        return;
+      }
+
+      setBiometricError(null);
+      setBiometricLoading(userId);
+
+      try {
+        const support = await detectBiometricSupport();
+
+        if (!support.available) {
+          const message = 'This device does not support biometric authentication.';
+          Alert.alert('Biometrics not supported', message);
+          setBiometricError(message);
+          return;
+        }
+
+        if (!support.enrolled) {
+          const message =
+            'Set up Face ID, Touch ID or fingerprint unlock on your device to use biometric sign in.';
+          Alert.alert('Biometrics not set up', message);
+          setBiometricError(message);
+          return;
+        }
+
+        const authResult = await requestBiometricAuthentication('Sign in to Football App');
+        if (!authResult.success) {
+          const message = authResult.error ?? 'We could not verify your identity with biometrics.';
+          Alert.alert('Authentication failed', message);
+          setBiometricError(message);
+          return;
+        }
+
+        await dispatch(loginWithBiometrics({ userId: targetUser.id })).unwrap();
+      } catch (error) {
+        const message =
+          typeof error === 'string'
+            ? error
+            : 'Unable to complete biometric sign in. Please try again.';
+        Alert.alert('Sign in failed', message);
+        setBiometricError(message);
+      } finally {
+        setBiometricLoading(null);
+      }
+    },
+    [biometricUsers, dispatch],
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -94,6 +154,36 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
           <TouchableOpacity onPress={() => navigation.navigate('Register')} style={styles.secondaryAction}>
             <Text style={styles.secondaryText}>Need an account? Register now</Text>
           </TouchableOpacity>
+
+          {biometricUsers.length ? (
+            <View style={styles.biometricCard}>
+              <Text style={styles.biometricTitle}>Biometric sign in</Text>
+              <Text style={styles.biometricSubtitle}>
+                Use Face ID or Touch ID for quicker access to your teams.
+              </Text>
+              {biometricUsers.map((user) => {
+                const isAuthenticating = biometricLoading === user.id;
+                return (
+                  <TouchableOpacity
+                    key={user.id}
+                    style={[
+                      styles.biometricButton,
+                      isAuthenticating && styles.biometricButtonDisabled,
+                    ]}
+                    onPress={() => handleBiometricLogin(user.id)}
+                    disabled={isAuthenticating || loading || submitting}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.biometricButtonText}>
+                      {isAuthenticating ? 'Authenticating…' : `Sign in as ${user.fullName}`}
+                    </Text>
+                    <Text style={styles.biometricButtonEmail}>{user.email}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+              {biometricError ? <Text style={styles.biometricError}>{biometricError}</Text> : null}
+            </View>
+          ) : null}
 
           <View style={styles.helpCard}>
             <Text style={styles.helpTitle}>Admin access</Text>
@@ -171,6 +261,51 @@ const styles = StyleSheet.create({
   secondaryText: {
     color: '#93c5fd',
     fontSize: 15,
+  },
+  biometricCard: {
+    marginTop: 24,
+    padding: 16,
+    backgroundColor: '#1e293b',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#334155',
+    gap: 12,
+  },
+  biometricTitle: {
+    color: '#f8fafc',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  biometricSubtitle: {
+    color: '#cbd5f5',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  biometricButton: {
+    marginTop: 4,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#2563eb',
+    borderWidth: 1,
+    borderColor: '#1d4ed8',
+  },
+  biometricButtonDisabled: {
+    opacity: 0.7,
+  },
+  biometricButtonText: {
+    color: '#f8fafc',
+    fontWeight: '700',
+  },
+  biometricButtonEmail: {
+    color: '#dbeafe',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  biometricError: {
+    color: '#fda4af',
+    fontSize: 13,
+    marginTop: 8,
   },
   helpCard: {
     marginTop: 32,

@@ -10,6 +10,7 @@ export interface UserAccount {
   marketingOptIn: boolean;
   status: UserStatus;
   createdAt: string;
+  biometricEnabled: boolean;
 }
 
 export interface StoredUserAccount extends UserAccount {

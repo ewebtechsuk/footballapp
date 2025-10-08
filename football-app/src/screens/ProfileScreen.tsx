@@ -59,8 +59,15 @@ import {
   hydratePremium,
 } from '../store/slices/premiumSlice';
 import { loadStoredProfile, persistProfile as persistProfileToStorage } from '../services/profileStorage';
-import { logoutUser, selectCurrentUser, updateMarketingPreference } from '../store/slices/authSlice';
+import {
+  logoutUser,
+  selectCurrentUser,
+  updateBiometricPreference,
+  updateMarketingPreference,
+} from '../store/slices/authSlice';
 import type { RootStackParamList } from '../types/navigation';
+import { detectBiometricSupport, requestBiometricAuthentication } from '../services/biometricAuth';
+import type { BiometricSupport } from '../services/biometricAuth';
 
 const sanitizeProfile = (profile: ProfileState): ProfileState => ({
   fullName: profile.fullName.trim(),
@@ -148,6 +155,9 @@ const ProfileScreen: React.FC = () => {
   const [iosDobCandidate, setIosDobCandidate] = useState<Date>(defaultDob());
   const [updatingSelfMarketing, setUpdatingSelfMarketing] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [checkingBiometricSupport, setCheckingBiometricSupport] = useState(false);
+  const [biometricSupport, setBiometricSupport] = useState<BiometricSupport | null>(null);
+  const [updatingBiometrics, setUpdatingBiometrics] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -179,6 +189,31 @@ const ProfileScreen: React.FC = () => {
   useEffect(() => {
     setProfileForm(profile);
   }, [profile]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const evaluateSupport = async () => {
+      if (!currentUser) {
+        setBiometricSupport(null);
+        setCheckingBiometricSupport(false);
+        return;
+      }
+
+      setCheckingBiometricSupport(true);
+      const support = await detectBiometricSupport();
+      if (!cancelled) {
+        setBiometricSupport(support);
+        setCheckingBiometricSupport(false);
+      }
+    };
+
+    evaluateSupport();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser]);
 
   const socialFieldConfigs = useMemo<
     Array<{ key: keyof ProfileState['social']; label: string; placeholder: string }>
@@ -225,7 +260,7 @@ const ProfileScreen: React.FC = () => {
 
   const handleSelfMarketingPreference = useCallback(
     async (value: boolean) => {
-      if (!currentUser) {
+      if (!currentUser || updatingSelfMarketing) {
         return;
       }
 
@@ -241,7 +276,73 @@ const ProfileScreen: React.FC = () => {
         setUpdatingSelfMarketing(false);
       }
     },
-    [currentUser, dispatch],
+    [currentUser, dispatch, updatingSelfMarketing],
+  );
+
+  const handleBiometricPreference = useCallback(
+    async (enabled: boolean) => {
+      if (!currentUser || updatingBiometrics) {
+        return;
+      }
+
+      if (!biometricSupport) {
+        Alert.alert(
+          'Biometrics unavailable',
+          'We could not verify your device\'s biometric capabilities. Please try again later.',
+        );
+        return;
+      }
+
+      if (enabled) {
+        if (!biometricSupport.available) {
+          Alert.alert(
+            'Biometrics not supported',
+            'This device does not support biometric authentication.',
+          );
+          return;
+        }
+
+        if (!biometricSupport.enrolled) {
+          Alert.alert(
+            'Biometrics not set up',
+            'Set up Face ID, Touch ID or a fingerprint on your device before enabling biometric login.',
+          );
+          return;
+        }
+
+        const authResult = await requestBiometricAuthentication('Enable biometric login');
+        if (!authResult.success) {
+          Alert.alert(
+            'Biometric check failed',
+            authResult.error ?? 'We were unable to verify your identity with biometrics.',
+          );
+          return;
+        }
+      }
+
+      setUpdatingBiometrics(true);
+      try {
+        await dispatch(
+          updateBiometricPreference({ userId: currentUser.id, biometricEnabled: enabled }),
+        ).unwrap();
+
+        Alert.alert(
+          enabled ? 'Biometric login enabled' : 'Biometric login disabled',
+          enabled
+            ? 'You can now use biometrics to sign in to Football App faster.'
+            : 'Biometric sign in has been turned off for this account.',
+        );
+      } catch (error) {
+        const message =
+          typeof error === 'string'
+            ? error
+            : 'Unable to update your biometric preference. Please try again later.';
+        Alert.alert('Update failed', message);
+      } finally {
+        setUpdatingBiometrics(false);
+      }
+    },
+    [biometricSupport, currentUser, dispatch, updatingBiometrics],
   );
 
   const handleLogout = useCallback(async () => {
@@ -710,6 +811,49 @@ const ProfileScreen: React.FC = () => {
                   {loggingOut ? 'Signing out…' : 'Sign out'}
                 </Text>
               </TouchableOpacity>
+            </View>
+          </View>
+        ) : null}
+
+        {currentUser ? (
+          <View style={styles.securityCard}>
+            <Text style={styles.sectionTitle}>Security settings</Text>
+            <Text style={styles.sectionSubtitle}>
+              Keep your account protected and sign in faster with biometrics.
+            </Text>
+            <View style={styles.securityRow}>
+              <View style={styles.securityCopy}>
+                <Text style={styles.securityLabel}>Biometric login</Text>
+                <Text style={styles.securityDescription}>
+                  {currentUser.biometricEnabled
+                    ? 'Use your fingerprint or face to sign in without typing your password.'
+                    : 'Enable Touch ID, Face ID or fingerprint unlock to sign in more quickly.'}
+                </Text>
+                {biometricSupport && !biometricSupport.available ? (
+                  <Text style={styles.securityHelper}>
+                    This device does not support biometric authentication.
+                  </Text>
+                ) : null}
+                {biometricSupport && biometricSupport.available && !biometricSupport.enrolled ? (
+                  <Text style={styles.securityHelper}>
+                    Set up biometrics in your device settings before turning this on.
+                  </Text>
+                ) : null}
+              </View>
+              {checkingBiometricSupport ? (
+                <ActivityIndicator color="#2563eb" />
+              ) : (
+                <Switch
+                  value={currentUser.biometricEnabled}
+                  onValueChange={handleBiometricPreference}
+                  disabled={
+                    updatingBiometrics ||
+                    !biometricSupport ||
+                    !biometricSupport.available ||
+                    (!biometricSupport.enrolled && !currentUser.biometricEnabled)
+                  }
+                />
+              )}
             </View>
           </View>
         ) : null}
@@ -1242,6 +1386,40 @@ const styles = StyleSheet.create({
   accountSecondaryButtonText: {
     color: '#cbd5f5',
     fontWeight: '600',
+  },
+  securityCard: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#cbd5f5',
+    padding: 20,
+    gap: 16,
+  },
+  securityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
+  },
+  securityCopy: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  securityLabel: {
+    fontWeight: '700',
+    color: '#0f172a',
+    marginBottom: 4,
+  },
+  securityDescription: {
+    color: '#334155',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  securityHelper: {
+    marginTop: 8,
+    color: '#ef4444',
+    fontSize: 12,
+    lineHeight: 16,
   },
   profileCard: {
     backgroundColor: '#f8fafc',
