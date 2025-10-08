@@ -16,6 +16,17 @@ import {
 } from '../store/slices/challengesSlice';
 import { selectCurrentUser } from '../store/slices/authSlice';
 import { creditWallet } from '../store/slices/walletSlice';
+import {
+  contributeToEvent,
+  selectActiveCoOpEvents,
+  selectCommunitySpotlights,
+} from '../store/slices/communitySlice';
+import {
+  selectFeaturedBroadcast,
+  selectHighlightClips,
+  selectWeeklyReels,
+  voteForClip,
+} from '../store/slices/mediaSlice';
 import { AuthenticatedTabParamList, RootStackParamList } from '../types/navigation';
 
 type HomeScreenNavigationProp = CompositeNavigationProp<
@@ -158,6 +169,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const dispatch = useAppDispatch();
   const currentUser = useAppSelector(selectCurrentUser);
   const challenges = useAppSelector(selectActiveChallenges);
+  const coOpEvents = useAppSelector(selectActiveCoOpEvents);
+  const communitySpotlights = useAppSelector(selectCommunitySpotlights);
+  const highlightClips = useAppSelector(selectHighlightClips);
+  const weeklyReels = useAppSelector(selectWeeklyReels);
+  const featuredBroadcast = useAppSelector(selectFeaturedBroadcast);
+  const teams = useAppSelector((state) => state.teams.teams);
 
   const greetingName = useMemo(() => currentUser?.fullName.split(' ')[0] ?? 'coach', [currentUser]);
   const welcomeHeadline = currentUser
@@ -166,6 +183,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const helperCopy = currentUser
     ? 'Keep your squad sharp with quick actions and weekly challenges.'
     : 'Create your first team, explore tournaments, and rally players in minutes.';
+  const defaultTeamId = useMemo(() => teams[0]?.id ?? 'team-1', [teams]);
+  const topReels = useMemo(() => weeklyReels.slice(0, 2), [weeklyReels]);
+  const topClips = useMemo(() => highlightClips.slice(0, 3), [highlightClips]);
 
   const handleQuickActionPress = useCallback(
     (target: QuickActionTarget) => {
@@ -223,6 +243,22 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       }
     },
     [challenges, dispatch],
+  );
+
+  const handleContributeToEvent = useCallback(
+    (eventId: string) => {
+      dispatch(contributeToEvent({ eventId, teamId: defaultTeamId, amount: 1 }));
+      Alert.alert('Progress logged', 'Thanks for adding to the community challenge!');
+    },
+    [defaultTeamId, dispatch],
+  );
+
+  const handleVoteForHighlight = useCallback(
+    (clipId: string) => {
+      dispatch(voteForClip({ clipId }));
+      Alert.alert('Vote recorded', 'Your highlight pick has been counted.');
+    },
+    [dispatch],
   );
 
   return (
@@ -333,6 +369,105 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               </View>
             ))
           )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Community co-op events</Text>
+          <View style={styles.eventList}>
+            {coOpEvents.map((event) => {
+              const percentComplete = Math.min(100, Math.round((event.progress / event.goal) * 100));
+              return (
+                <View key={event.id} style={styles.eventCard}>
+                  <Text style={styles.eventTitle}>{event.title}</Text>
+                  <Text style={styles.eventDescription}>{event.description}</Text>
+                  <View style={styles.eventProgressTrack}>
+                    <View style={[styles.eventProgressFill, { width: `${percentComplete}%` }]} />
+                  </View>
+                  <Text style={styles.eventMeta}>
+                    {event.progress}/{event.goal} • {percentComplete}% complete • {event.participatingTeams} teams
+                  </Text>
+                  <Text style={styles.eventReward}>Reward: {event.reward}</Text>
+                  <TouchableOpacity
+                    style={styles.eventButton}
+                    onPress={() => handleContributeToEvent(event.id)}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.eventButtonLabel}>Log 1 contribution</Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
+        {featuredBroadcast && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Featured broadcast</Text>
+            <View style={styles.broadcastCard}>
+              <Text style={styles.broadcastTitle}>{featuredBroadcast.title}</Text>
+              <Text style={styles.broadcastMeta}>
+                Hosted by {featuredBroadcast.host} •{' '}
+                {new Date(featuredBroadcast.scheduledFor).toLocaleString()}
+              </Text>
+              <Text style={styles.broadcastSummary}>{featuredBroadcast.summary}</Text>
+              <Text style={styles.broadcastLink}>{featuredBroadcast.streamUrl}</Text>
+            </View>
+          </View>
+        )}
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Weekly highlight reels</Text>
+          <View style={styles.reelList}>
+            {topReels.map((reel) => (
+              <View key={reel.id} style={styles.reelCard}>
+                <Text style={styles.reelTitle}>{reel.title}</Text>
+                <Text style={styles.reelMeta}>{reel.description}</Text>
+                <Text style={styles.reelMeta}>
+                  Published {new Date(reel.publishedAt).toLocaleDateString()} • {reel.clipIds.length} clips
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Trending highlight clips</Text>
+          <View style={styles.clipList}>
+            {topClips.map((clip) => (
+              <View key={clip.id} style={styles.clipCard}>
+                <Text style={styles.clipTitle}>{clip.title}</Text>
+                <Text style={styles.clipMeta}>
+                  Votes {clip.votes} • Tags {clip.tags.join(', ') || '—'}
+                </Text>
+                <Text style={styles.clipMeta}>
+                  Submitted by {clip.submittedBy} • {new Date(clip.submittedAt).toLocaleTimeString()}
+                </Text>
+                <TouchableOpacity
+                  style={styles.clipButton}
+                  onPress={() => handleVoteForHighlight(clip.id)}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.clipButtonLabel}>Vote as favourite</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Community spotlights</Text>
+          <View style={styles.spotlightList}>
+            {communitySpotlights.map((spotlight) => (
+              <View key={spotlight.id} style={styles.spotlightCard}>
+                <Text style={styles.spotlightTeam}>{spotlight.teamName}</Text>
+                <Text style={styles.spotlightTitle}>{spotlight.title}</Text>
+                <Text style={styles.spotlightMeta}>
+                  Published {new Date(spotlight.publishedAt).toLocaleDateString()}
+                </Text>
+                <Text style={styles.spotlightSummary}>{spotlight.summary}</Text>
+              </View>
+            ))}
+          </View>
         </View>
 
         <BannerAdSlot unitId={homeBannerAdUnitId} size={defaultBannerSize} />
@@ -536,6 +671,162 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#1f2937',
     lineHeight: 18,
+  },
+  eventList: {
+    gap: 16,
+  },
+  eventCard: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e0f2fe',
+    gap: 10,
+  },
+  eventTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0369a1',
+  },
+  eventDescription: {
+    fontSize: 13,
+    color: '#0c4a6e',
+  },
+  eventProgressTrack: {
+    height: 8,
+    backgroundColor: '#bae6fd',
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  eventProgressFill: {
+    height: '100%',
+    backgroundColor: '#0284c7',
+    borderRadius: 999,
+  },
+  eventMeta: {
+    fontSize: 12,
+    color: '#0369a1',
+  },
+  eventReward: {
+    fontSize: 12,
+    color: '#0c4a6e',
+    fontWeight: '600',
+  },
+  eventButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#0284c7',
+    borderRadius: 999,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  eventButtonLabel: {
+    fontSize: 12,
+    color: '#f8fafc',
+    fontWeight: '700',
+  },
+  broadcastCard: {
+    backgroundColor: '#1e293b',
+    borderRadius: 16,
+    padding: 16,
+    gap: 8,
+  },
+  broadcastTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#f8fafc',
+  },
+  broadcastMeta: {
+    fontSize: 12,
+    color: '#cbd5f5',
+  },
+  broadcastSummary: {
+    fontSize: 13,
+    color: '#e2e8f0',
+  },
+  broadcastLink: {
+    fontSize: 12,
+    color: '#38bdf8',
+    fontWeight: '600',
+  },
+  reelList: {
+    gap: 12,
+  },
+  reelCard: {
+    backgroundColor: '#fef9c3',
+    borderRadius: 16,
+    padding: 16,
+    gap: 6,
+  },
+  reelTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#92400e',
+  },
+  reelMeta: {
+    fontSize: 12,
+    color: '#b45309',
+  },
+  clipList: {
+    gap: 12,
+  },
+  clipCard: {
+    backgroundColor: '#fdf2f8',
+    borderRadius: 16,
+    padding: 16,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#fbcfe8',
+  },
+  clipTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#be123c',
+  },
+  clipMeta: {
+    fontSize: 12,
+    color: '#9f1239',
+  },
+  clipButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#be123c',
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  clipButtonLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#fff1f2',
+  },
+  spotlightList: {
+    gap: 12,
+  },
+  spotlightCard: {
+    backgroundColor: '#f1f5f9',
+    borderRadius: 16,
+    padding: 16,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+  },
+  spotlightTeam: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1d4ed8',
+    textTransform: 'uppercase',
+  },
+  spotlightTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  spotlightMeta: {
+    fontSize: 12,
+    color: '#475569',
+  },
+  spotlightSummary: {
+    fontSize: 13,
+    color: '#334155',
   },
 });
 

@@ -43,6 +43,15 @@ import {
   selectOpenPositionsForTeam,
   updateOpenPositionStatus,
 } from '../store/slices/scoutingSlice';
+import type { TransferListing } from '../store/slices/transferMarketSlice';
+import { placeTransferBid, selectShortlistForTeam, selectTransferListings, toggleShortlistEntry } from '../store/slices/transferMarketSlice';
+import {
+  markSessionCompleted,
+  recordAttributeGain,
+  selectPlayerDevelopmentProfiles,
+  selectRecommendedDrills,
+  selectTrainingPlanForTeam,
+} from '../store/slices/playerDevelopmentSlice';
 import {
   CommunicationAudience,
   CommunicationCategory,
@@ -175,6 +184,12 @@ const ManageTeamScreen: React.FC = () => {
     teamId ? selectOpenPositionsForTeam(state, teamId) : [],
   );
   const marketplaceFreeAgents = useAppSelector(selectFreeAgents);
+  const transferListings = useAppSelector(selectTransferListings);
+  const shortlistEntries = useAppSelector((state) => selectShortlistForTeam(state, teamId));
+  const trainingPlan = useAppSelector((state) => selectTrainingPlanForTeam(state, teamId ?? undefined));
+  const recommendedDrills = useAppSelector(selectRecommendedDrills);
+  const developmentProfiles = useAppSelector(selectPlayerDevelopmentProfiles);
+  const scoutingReports = useAppSelector((state) => state.transferMarket.scoutingReports);
 
   const [teamName, setTeamName] = useState('');
   const [members, setMembers] = useState<TeamMember[]>([]);
@@ -272,6 +287,15 @@ const ManageTeamScreen: React.FC = () => {
         return aTime - bTime;
       });
   }, [fixtures]);
+  const shortlistWithReports = useMemo(
+    () =>
+      shortlistEntries.map((entry) => ({
+        entry,
+        report: scoutingReports.find((report) => report.playerId === entry.playerId),
+      })),
+    [scoutingReports, shortlistEntries],
+  );
+  const developmentSnapshot = useMemo(() => developmentProfiles.slice(0, 3), [developmentProfiles]);
 
   const toggleSetting = (key: keyof TeamSettings) => {
     setSettings((previousSettings) => ({
@@ -615,6 +639,39 @@ const ManageTeamScreen: React.FC = () => {
 
     dispatch(inviteFreeAgent({ freeAgentId, teamId }));
     Alert.alert('Invite sent', `${name} has received your scouting invite.`);
+  };
+
+  const handleToggleShortlistPlayer = (playerId: string) => {
+    if (!teamId) {
+      Alert.alert('Team unavailable', 'Create a team before managing a shortlist.');
+      return;
+    }
+
+    dispatch(toggleShortlistEntry({ teamId, playerId }));
+  };
+
+  const handlePlaceBidOnListing = (listing: TransferListing) => {
+    if (!teamId) {
+      Alert.alert('Team unavailable', 'Create a team before placing transfer bids.');
+      return;
+    }
+
+    const nextBid = listing.currentBid > 0 ? listing.currentBid + 5 : listing.askingPrice;
+    dispatch(placeTransferBid({ listingId: listing.id, teamId, amount: nextBid }));
+    Alert.alert('Bid submitted', `Bid of ${nextBid} credits placed for this player.`);
+  };
+
+  const handleToggleTrainingSession = (sessionId: string, completed: boolean) => {
+    if (!trainingPlan) {
+      return;
+    }
+
+    dispatch(markSessionCompleted({ planId: trainingPlan.id, sessionId, completed }));
+  };
+
+  const handleRecordDevelopmentGain = (playerId: string, attribute: string) => {
+    dispatch(recordAttributeGain({ playerId, attribute, delta: 1 }));
+    Alert.alert('Progress logged', `${attribute} focus added to this player.`);
   };
 
   const handleInviteFromContacts = () => {
@@ -1585,6 +1642,138 @@ const ManageTeamScreen: React.FC = () => {
                 );
               })
             )}
+          </View>
+
+          <View style={styles.marketplaceSection}>
+            <Text style={styles.marketplaceHeading}>Transfer market auctions</Text>
+            {transferListings.length === 0 ? (
+              <Text style={styles.emptyState}>No auctions available. Check back later today.</Text>
+            ) : (
+              transferListings.map((listing) => (
+                <View key={listing.id} style={styles.listingCard}>
+                  <View style={styles.listingHeader}>
+                    <Text style={styles.listingTitle}>Bid for {listing.playerId}</Text>
+                    <Text style={styles.listingStatus}>{listing.status.toUpperCase()}</Text>
+                  </View>
+                  <Text style={styles.listingMeta}>
+                    Current bid: {listing.currentBid} credits • Asking price: {listing.askingPrice} credits
+                  </Text>
+                  <Text style={styles.listingDescription}>{listing.note}</Text>
+                  <Text style={styles.listingMeta}>
+                    Closes {new Date(listing.closingAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                  <View style={styles.listingActions}>
+                    <TouchableOpacity
+                      style={styles.secondaryChip}
+                      onPress={() => handlePlaceBidOnListing(listing)}
+                    >
+                      <Text style={styles.secondaryChipText}>Bid +5 credits</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.secondaryChip}
+                      onPress={() => handleToggleShortlistPlayer(listing.playerId)}
+                    >
+                      <Text style={styles.secondaryChipText}>Toggle shortlist</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+
+          <View style={styles.marketplaceSection}>
+            <Text style={styles.marketplaceHeading}>Shortlist</Text>
+            {shortlistWithReports.length === 0 ? (
+              <Text style={styles.emptyState}>Use the buttons above to add targets to your shortlist.</Text>
+            ) : (
+              shortlistWithReports.map(({ entry, report }) => (
+                <View key={entry.playerId} style={styles.shortlistCard}>
+                  <Text style={styles.shortlistName}>{entry.playerId}</Text>
+                  <Text style={styles.shortlistMeta}>Priority: {entry.priority.toUpperCase()}</Text>
+                  {report ? (
+                    <Text style={styles.shortlistMeta}>
+                      {report.summary} • Potential {report.potentialRating}/100 • Risk {report.riskLevel}
+                    </Text>
+                  ) : null}
+                  {entry.notes ? <Text style={styles.shortlistNotes}>{entry.notes}</Text> : null}
+                </View>
+              ))
+            )}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Training plan & development</Text>
+          {trainingPlan ? (
+            <>
+              <Text style={styles.sectionSubtitle}>
+                {trainingPlan.weekLabel} • Completion rate {Math.round(trainingPlan.completionRate * 100)}%
+              </Text>
+              <View style={styles.trainingCard}>
+                {trainingPlan.sessions.map((session) => (
+                  <View key={session.id} style={styles.trainingSessionRow}>
+                    <View style={styles.trainingSessionInfo}>
+                      <Text style={styles.trainingSessionTitle}>
+                        {session.day} • {session.drill}
+                      </Text>
+                      <Text style={styles.trainingSessionMeta}>
+                        {session.durationMinutes} mins • {session.intensity.toUpperCase()} • {session.focus}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[styles.secondaryChip, session.completed && styles.trainingCompletedChip]}
+                      onPress={() => handleToggleTrainingSession(session.id, !session.completed)}
+                    >
+                      <Text style={styles.secondaryChipText}>
+                        {session.completed ? 'Mark pending' : 'Mark done'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+              <Text style={styles.trainingSummary}>{trainingPlan.wellnessNote}</Text>
+            </>
+          ) : (
+            <Text style={styles.emptyState}>Build a weekly training plan to keep players progressing.</Text>
+          )}
+
+          <Text style={styles.marketplaceHeading}>Recommended drills</Text>
+          <View style={styles.recommendedDrillList}>
+            {recommendedDrills.slice(0, 3).map((drill) => (
+              <View key={drill.id} style={styles.recommendedDrillCard}>
+                <Text style={styles.recommendedDrillTitle}>{drill.title}</Text>
+                <Text style={styles.recommendedDrillMeta}>
+                  {drill.focus} • {drill.durationMinutes} mins • {drill.intensity.toUpperCase()}
+                </Text>
+                <Text style={styles.recommendedDrillSummary}>{drill.description}</Text>
+              </View>
+            ))}
+          </View>
+
+          <Text style={styles.marketplaceHeading}>Player development snapshot</Text>
+          <View style={styles.developmentList}>
+            {developmentSnapshot.map((profile) => (
+              <View key={profile.playerId} style={styles.developmentCard}>
+                <Text style={styles.developmentName}>{profile.playerName}</Text>
+                <Text style={styles.developmentMeta}>
+                  {profile.position} • Focus: {profile.focusArea}
+                </Text>
+                {profile.attributes.slice(0, 2).map((attribute) => (
+                  <View key={attribute.attribute} style={styles.developmentAttributeRow}>
+                    <Text style={styles.developmentAttributeLabel}>{attribute.attribute}</Text>
+                    <Text style={styles.developmentAttributeMeta}>
+                      {attribute.current}/{attribute.target} • +{attribute.weeklyGain.toFixed(1)} per week
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.secondaryChip}
+                      onPress={() => handleRecordDevelopmentGain(profile.playerId, attribute.attribute)}
+                    >
+                      <Text style={styles.secondaryChipText}>Log +1</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            ))}
           </View>
         </View>
 

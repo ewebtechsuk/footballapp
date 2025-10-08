@@ -169,6 +169,7 @@ const ProfileScreen: React.FC = () => {
   const navigation = useNavigation<ProfileScreenNavigationProp>();
   const dispatch = useAppDispatch();
   const credits = useAppSelector((state) => state.wallet.credits);
+  const cosmeticTokens = useAppSelector((state) => state.wallet.cosmeticTokens);
   const premium = useAppSelector((state) => state.premium);
   const profile = useAppSelector((state) => state.profile);
   const currentUser = useAppSelector(selectCurrentUser);
@@ -713,9 +714,10 @@ const ProfileScreen: React.FC = () => {
   const walletSummary = useMemo(
     () => ({
       balance: credits,
+      cosmeticTokens,
       nextTierCredits: credits >= 500 ? null : 500 - credits,
     }),
-    [credits],
+    [cosmeticTokens, credits],
   );
 
   const handlePurchase = async (selectedPackage: CreditPackage) => {
@@ -729,7 +731,7 @@ const ProfileScreen: React.FC = () => {
       const updatedCredits = credits + receipt.creditsAwarded;
 
       dispatch(creditWallet(receipt.creditsAwarded));
-      await syncWallet({ credits: updatedCredits });
+      await syncWallet({ credits: updatedCredits, cosmeticTokens });
 
       Alert.alert(
         'Purchase complete',
@@ -1242,13 +1244,18 @@ const ProfileScreen: React.FC = () => {
         </View>
 
         <View style={styles.walletCard}>
-          <Text style={styles.walletLabel}>Wallet credits</Text>
+          <Text style={styles.walletLabel}>Wallet balances</Text>
           <Text style={styles.walletValue}>{walletSummary.balance}</Text>
+          <Text style={styles.walletTokens}>{walletSummary.cosmeticTokens} cosmetic tokens</Text>
           {walletSummary.nextTierCredits !== null && (
             <Text style={styles.walletHelper}>
               Earn {walletSummary.nextTierCredits} more credits to unlock exclusive tournaments.
             </Text>
           )}
+          <Text style={styles.walletHelper}>
+            Cosmetic tokens unlock kit patterns and goal celebrations via rewarded ads in the tournament
+            hub.
+          </Text>
         </View>
 
         <View style={styles.sectionHeader}>
@@ -1822,6 +1829,11 @@ const styles = StyleSheet.create({
     fontSize: 36,
     fontWeight: '700',
     color: '#16a34a',
+  },
+  walletTokens: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1d4ed8',
   },
   walletHelper: {
     fontSize: 12,
