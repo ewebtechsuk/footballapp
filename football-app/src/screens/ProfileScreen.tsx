@@ -8,12 +8,15 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
   View,
   DatePickerIOS,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { Product, ProductPurchase, PurchaseError } from 'react-native-iap';
 
 import { useAppDispatch, useAppSelector } from '../store/hooks';
@@ -56,6 +59,8 @@ import {
   hydratePremium,
 } from '../store/slices/premiumSlice';
 import { loadStoredProfile, persistProfile as persistProfileToStorage } from '../services/profileStorage';
+import { logoutUser, selectCurrentUser, updateMarketingPreference } from '../store/slices/authSlice';
+import type { RootStackParamList } from '../types/navigation';
 
 const sanitizeProfile = (profile: ProfileState): ProfileState => ({
   fullName: profile.fullName.trim(),
@@ -120,10 +125,12 @@ const defaultDob = () => {
 };
 
 const ProfileScreen: React.FC = () => {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const dispatch = useAppDispatch();
   const credits = useAppSelector((state) => state.wallet.credits);
   const premium = useAppSelector((state) => state.premium);
   const profile = useAppSelector((state) => state.profile);
+  const currentUser = useAppSelector(selectCurrentUser);
 
   const [profileForm, setProfileForm] = useState<ProfileState>(profile);
   const [loadingProfileDetails, setLoadingProfileDetails] = useState(true);
@@ -139,6 +146,8 @@ const ProfileScreen: React.FC = () => {
   const [restoringPremium, setRestoringPremium] = useState(false);
   const [iosDobPickerVisible, setIosDobPickerVisible] = useState(false);
   const [iosDobCandidate, setIosDobCandidate] = useState<Date>(defaultDob());
+  const [updatingSelfMarketing, setUpdatingSelfMarketing] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -213,6 +222,39 @@ const ProfileScreen: React.FC = () => {
       },
     }));
   };
+
+  const handleSelfMarketingPreference = useCallback(
+    async (value: boolean) => {
+      if (!currentUser) {
+        return;
+      }
+
+      setUpdatingSelfMarketing(true);
+      try {
+        await dispatch(
+          updateMarketingPreference({ userId: currentUser.id, marketingOptIn: value }),
+        ).unwrap();
+      } catch (error) {
+        const message = typeof error === 'string' ? error : 'Unable to update preference.';
+        Alert.alert('Update failed', message);
+      } finally {
+        setUpdatingSelfMarketing(false);
+      }
+    },
+    [currentUser, dispatch],
+  );
+
+  const handleLogout = useCallback(async () => {
+    setLoggingOut(true);
+    try {
+      await dispatch(logoutUser()).unwrap();
+    } catch (error) {
+      const message = typeof error === 'string' ? error : 'Unable to sign out right now.';
+      Alert.alert('Logout failed', message);
+    } finally {
+      setLoggingOut(false);
+    }
+  }, [dispatch]);
 
   const paymentMethodOptions = useMemo(
     () => [
@@ -616,6 +658,61 @@ const ProfileScreen: React.FC = () => {
             Manage your account details and top up your wallet to join more tournaments.
           </Text>
         </View>
+
+        {currentUser ? (
+          <View style={styles.accountCard}>
+            <View style={styles.accountHeader}>
+              <View>
+                <Text style={styles.accountName}>{currentUser.fullName}</Text>
+                <Text style={styles.accountEmail}>{currentUser.email}</Text>
+              </View>
+              <Text
+                style={[
+                  styles.accountRoleBadge,
+                  currentUser.role === 'admin'
+                    ? styles.accountRoleBadgeAdmin
+                    : styles.accountRoleBadgeManager,
+                ]}
+              >
+                {currentUser.role === 'admin' ? 'Admin' : 'Manager'}
+              </Text>
+            </View>
+            <View style={styles.accountRow}>
+              <View style={styles.accountRowCopy}>
+                <Text style={styles.accountRowLabel}>Marketing updates</Text>
+                <Text style={styles.accountRowDescription}>
+                  {currentUser.marketingOptIn
+                    ? 'You are subscribed to announcements and offers.'
+                    : 'Enable this to hear about new tournaments and partners.'}
+                </Text>
+              </View>
+              <Switch
+                value={currentUser.marketingOptIn}
+                onValueChange={handleSelfMarketingPreference}
+                disabled={updatingSelfMarketing}
+              />
+            </View>
+            <View style={styles.accountActions}>
+              {currentUser.role === 'admin' ? (
+                <TouchableOpacity
+                  style={[styles.accountButton, styles.accountPrimaryButton]}
+                  onPress={() => navigation.navigate('AdminDashboard')}
+                >
+                  <Text style={styles.accountPrimaryButtonText}>Open admin centre</Text>
+                </TouchableOpacity>
+              ) : null}
+              <TouchableOpacity
+                style={[styles.accountButton, styles.accountSecondaryButton]}
+                onPress={handleLogout}
+                disabled={loggingOut}
+              >
+                <Text style={styles.accountSecondaryButtonText}>
+                  {loggingOut ? 'Signing out…' : 'Sign out'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : null}
 
         <View style={styles.profileCard}>
           <Text style={styles.sectionTitle}>Account details</Text>
@@ -1060,6 +1157,91 @@ const styles = StyleSheet.create({
     color: '#475569',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  accountCard: {
+    backgroundColor: '#1e293b',
+    borderRadius: 16,
+    padding: 20,
+    gap: 16,
+  },
+  accountHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  accountName: {
+    color: '#f8fafc',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  accountEmail: {
+    color: '#cbd5f5',
+    marginTop: 4,
+  },
+  accountRoleBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    color: '#0f172a',
+  },
+  accountRoleBadgeAdmin: {
+    backgroundColor: '#fbbf24',
+    color: '#0f172a',
+  },
+  accountRoleBadgeManager: {
+    backgroundColor: '#bae6fd',
+    color: '#0f172a',
+  },
+  accountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  accountRowCopy: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  accountRowLabel: {
+    color: '#f8fafc',
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  accountRowDescription: {
+    color: '#cbd5f5',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  accountActions: {
+    flexDirection: 'row',
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+  accountButton: {
+    flexGrow: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  accountPrimaryButton: {
+    backgroundColor: '#38bdf8',
+  },
+  accountPrimaryButtonText: {
+    color: '#0f172a',
+    fontWeight: '700',
+  },
+  accountSecondaryButton: {
+    borderWidth: 1,
+    borderColor: '#cbd5f5',
+    backgroundColor: 'transparent',
+  },
+  accountSecondaryButtonText: {
+    color: '#cbd5f5',
+    fontWeight: '600',
   },
   profileCard: {
     backgroundColor: '#f8fafc',
