@@ -30,6 +30,7 @@ export const PROFILE_PAYMENT_METHODS: readonly ProfilePaymentMethod[] = [
 export interface ProfileState {
   fullName: string;
   displayName: string;
+  email: string;
   mobileNumber: string;
   dateOfBirth: string;
   bio: string;
@@ -49,6 +50,7 @@ export type ProfileUpdate = Partial<
 const initialState: ProfileState = {
   fullName: '',
   displayName: '',
+  email: '',
   mobileNumber: '',
   dateOfBirth: '',
   bio: '',
