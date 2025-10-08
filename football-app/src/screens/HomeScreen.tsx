@@ -1,21 +1,22 @@
 import React from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity } from 'react-native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { CompositeNavigationProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import AuthenticatedScreenContainer from '../components/AuthenticatedScreenContainer';
 import BannerAdSlot from '../components/BannerAdSlot';
 import { defaultBannerSize, homeBannerAdUnitId } from '../config/ads';
-import { AuthenticatedTabParamList, RootStackParamList } from '../types/navigation';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { selectCurrentUser } from '../store/slices/authSlice';
 import {
+  Challenge,
   claimChallengeReward,
   markChallengeCompleted,
   selectActiveChallenges,
 } from '../store/slices/challengesSlice';
+import { selectCurrentUser } from '../store/slices/authSlice';
 import { creditWallet } from '../store/slices/walletSlice';
+import { AuthenticatedTabParamList, RootStackParamList } from '../types/navigation';
 
 type HomeScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<AuthenticatedTabParamList, 'Dashboard'>,
@@ -26,11 +27,33 @@ interface HomeScreenProps {
   navigation: HomeScreenNavigationProp;
 }
 
-const quickActions = [
-  { label: 'Manage teams', description: 'Edit rosters & tactics', route: 'Team' as const },
-  { label: 'Create team', description: 'Spin up a new squad', route: 'CreateTeam' as const },
-  { label: 'Join tournaments', description: 'Enter upcoming events', route: 'Tournaments' as const },
-  { label: 'Update profile', description: 'Refresh details & premium', route: 'Profile' as const },
+type QuickAction = {
+  label: string;
+  description: string;
+  onPress: (navigation: HomeScreenNavigationProp) => void;
+};
+
+const quickActions: QuickAction[] = [
+  {
+    label: 'Manage teams',
+    description: 'Edit rosters & tactics',
+    onPress: (navigation) => navigation.navigate('ManageTeams'),
+  },
+  {
+    label: 'Create team',
+    description: 'Spin up a new squad',
+    onPress: (navigation) => navigation.navigate('CreateTeam'),
+  },
+  {
+    label: 'Join tournaments',
+    description: 'Enter upcoming events',
+    onPress: (navigation) => navigation.navigate('Tournaments'),
+  },
+  {
+    label: 'Update profile',
+    description: 'Refresh details & premium',
+    onPress: (navigation) => navigation.navigate('Profile'),
+  },
 ];
 
 const featureHighlights = [
@@ -63,6 +86,39 @@ const designOpportunities = [
   'Bring in a dark mode palette that echoes stadium floodlights for late-night strategising.',
 ];
 
+const formatTimeUntil = (isoDate: string): string => {
+  const expiryDate = new Date(isoDate);
+  if (Number.isNaN(expiryDate.getTime())) {
+    return 'No expiry date';
+  }
+
+  const diffMs = expiryDate.getTime() - Date.now();
+  if (diffMs <= 0) {
+    return 'Expired';
+  }
+
+  const minutes = Math.ceil(diffMs / (1000 * 60));
+  if (minutes < 60) {
+    return `Due in ${minutes} min${minutes === 1 ? '' : 's'}`;
+  }
+
+  const hours = Math.ceil(diffMs / (1000 * 60 * 60));
+  if (hours < 24) {
+    return `Due in ${hours} hr${hours === 1 ? '' : 's'}`;
+  }
+
+  const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  return `Due in ${days} day${days === 1 ? '' : 's'}`;
+};
+
+const describeReward = (reward: Challenge['reward']): string => {
+  if (reward.type === 'credits') {
+    return `${reward.amount} credits`;
+  }
+
+  return `${reward.name} badge`;
+};
+
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const dispatch = useAppDispatch();
   const currentUser = useAppSelector(selectCurrentUser);
@@ -74,6 +130,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   const handleCompleteChallenge = (challengeId: string) => {
     dispatch(markChallengeCompleted({ challengeId }));
+    Alert.alert('Challenge completed', 'Great work! Claim your reward whenever you are ready.');
   };
 
   const handleClaimReward = (challengeId: string) => {
@@ -93,22 +150,30 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Welcome to the Football App!</Text>
-        <Text style={styles.subtitle}>{welcomeMessage}</Text>
-        <View style={styles.buttonGroup}>
-          <View style={styles.buttonWrapper}>
-            <Button title="Manage Teams" onPress={() => navigation.navigate('ManageTeams')} />
-          </View>
-          <View style={styles.buttonWrapper}>
-            <Button title="Create a Team" onPress={() => navigation.navigate('CreateTeam')} />
-          </View>
-          <View style={styles.buttonWrapper}>
-            <Button title="Join Tournaments" onPress={() => navigation.navigate('Tournaments')} />
-          </View>
-          <View style={styles.buttonWrapper}>
-            <Button title="Profile" onPress={() => navigation.navigate('Profile')} />
+    <AuthenticatedScreenContainer style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.heroCard}>
+          <Text style={styles.eyebrow}>This week&apos;s focus</Text>
+          <Text style={styles.title}>{welcomeMessage}</Text>
+          <Text style={styles.helperText}>
+            Keep your squad sharp with quick actions, curated drills, and tailored insights for every matchday.
+          </Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Quick actions</Text>
+          <View style={styles.quickActionGrid}>
+            {quickActions.map((action) => (
+              <TouchableOpacity
+                key={action.label}
+                style={styles.quickActionCard}
+                activeOpacity={0.8}
+                onPress={() => action.onPress(navigation)}
+              >
+                <Text style={styles.quickActionLabel}>{action.label}</Text>
+                <Text style={styles.quickActionDescription}>{action.description}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
 
@@ -134,6 +199,63 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             ))}
           </View>
         </View>
+
+        {challenges.length > 0 && (
+          <View style={styles.challengeSection}>
+            <Text style={styles.challengeHeading}>Squad challenges</Text>
+            <Text style={styles.challengeSubtitle}>
+              Complete drills to earn extra credits and exclusive recognition for your players.
+            </Text>
+
+            {challenges.map((challenge) => {
+              const isAvailable = challenge.status === 'available';
+              const isCompleted = challenge.status === 'completed';
+              const isClaimed = challenge.status === 'claimed';
+              const rewardDescription = describeReward(challenge.reward);
+              const expiresLabel = formatTimeUntil(challenge.expiresAt);
+
+              return (
+                <View key={challenge.id} style={styles.challengeCard}>
+                  <View style={styles.challengeDetails}>
+                    <Text style={styles.challengeTitle}>{challenge.title}</Text>
+                    <Text style={styles.challengeDescription}>{challenge.description}</Text>
+                    <Text style={styles.challengeMeta}>
+                      Reward: {rewardDescription} • {expiresLabel}
+                    </Text>
+                  </View>
+
+                  {isClaimed ? (
+                    <View style={styles.claimedBadge}>
+                      <Text style={styles.claimedBadgeText}>Reward claimed</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.challengeActions}>
+                      {isAvailable && (
+                        <TouchableOpacity
+                          style={[styles.challengeButton, styles.challengePrimary]}
+                          activeOpacity={0.85}
+                          onPress={() => handleCompleteChallenge(challenge.id)}
+                        >
+                          <Text style={styles.challengeButtonText}>Mark complete</Text>
+                        </TouchableOpacity>
+                      )}
+
+                      {isCompleted && (
+                        <TouchableOpacity
+                          style={[styles.challengeButton, styles.challengePrimary]}
+                          activeOpacity={0.85}
+                          onPress={() => handleClaimReward(challenge.id)}
+                        >
+                          <Text style={styles.challengeButtonText}>Claim reward</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        )}
 
         <BannerAdSlot unitId={homeBannerAdUnitId} size={defaultBannerSize} />
       </ScrollView>
