@@ -2,6 +2,8 @@ export type UserRole = 'user' | 'admin';
 
 export type UserStatus = 'active' | 'suspended';
 
+export type AuthProvider = 'email' | 'google' | 'facebook' | 'mobile';
+
 export interface UserAccount {
   id: string;
   fullName: string;
@@ -11,6 +13,8 @@ export interface UserAccount {
   status: UserStatus;
   createdAt: string;
   biometricEnabled: boolean;
+  authProvider: AuthProvider;
+  phoneNumber: string | null;
 }
 
 export interface StoredUserAccount extends UserAccount {

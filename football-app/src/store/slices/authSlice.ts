@@ -1,8 +1,19 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 
 import type { RootState } from '..';
-import type { StoredUserAccount, UserAccount, UserStatus } from '../../types/user';
-import { loadStoredUsers, persistCurrentUserId, persistUsers, loadStoredCurrentUserId } from '../../services/userStorage';
+import type {
+  AuthProvider,
+  StoredUserAccount,
+  UserAccount,
+  UserStatus,
+} from '../../types/user';
+import {
+  loadStoredUsers,
+  persistCurrentUserId,
+  persistUsers,
+  loadStoredCurrentUserId,
+} from '../../services/userStorage';
+import { fetchMockSocialProfile, type SocialProvider } from '../../services/socialAuth';
 
 interface AuthState {
   users: StoredUserAccount[];
@@ -25,6 +36,8 @@ const seedUsers = (): StoredUserAccount[] => [
     status: 'active',
     createdAt: new Date('2023-01-15T09:00:00Z').toISOString(),
     biometricEnabled: false,
+    authProvider: 'email',
+    phoneNumber: null,
   },
   {
     id: 'fan-jane',
@@ -36,6 +49,8 @@ const seedUsers = (): StoredUserAccount[] => [
     status: 'active',
     createdAt: new Date('2023-02-02T13:30:00Z').toISOString(),
     biometricEnabled: false,
+    authProvider: 'email',
+    phoneNumber: null,
   },
 ];
 
@@ -52,6 +67,23 @@ const initialState: AuthState = {
   error: null,
 };
 
+const normaliseEmail = (email: string) => email.trim().toLowerCase();
+
+const normalisePhoneNumber = (value: string) => value.replace(/[^\d+]/g, '');
+
+const describeProvider = (provider: AuthProvider) => {
+  switch (provider) {
+    case 'google':
+      return 'Google';
+    case 'facebook':
+      return 'Facebook';
+    case 'mobile':
+      return 'mobile number';
+    default:
+      return 'email';
+  }
+};
+
 export const initializeAuth = createAsyncThunk(
   'auth/initialize',
   async (_, { rejectWithValue }) => {
@@ -60,6 +92,8 @@ export const initializeAuth = createAsyncThunk(
       let users = (storedUsers ?? []).map((user) => ({
         ...user,
         biometricEnabled: user.biometricEnabled ?? false,
+        authProvider: user.authProvider ?? 'email',
+        phoneNumber: user.phoneNumber ?? null,
       }));
 
       if (!users.length) {
@@ -90,7 +124,7 @@ export const registerUser = createAsyncThunk<
   { state: RootState; rejectValue: string }
 >('auth/registerUser', async (payload, { getState, rejectWithValue }) => {
   const { fullName, email, password, marketingOptIn } = payload;
-  const normalisedEmail = email.trim().toLowerCase();
+  const normalisedEmail = normaliseEmail(email);
 
   if (!normalisedEmail) {
     return rejectWithValue('Email is required');
@@ -107,9 +141,7 @@ export const registerUser = createAsyncThunk<
 
   const { auth } = getState();
 
-  if (
-    auth.users.some((user) => user.email.trim().toLowerCase() === normalisedEmail)
-  ) {
+  if (auth.users.some((user) => normaliseEmail(user.email) === normalisedEmail)) {
     return rejectWithValue('An account with this email already exists');
   }
 
@@ -123,6 +155,8 @@ export const registerUser = createAsyncThunk<
     status: 'active',
     createdAt: new Date().toISOString(),
     biometricEnabled: false,
+    authProvider: 'email',
+    phoneNumber: null,
   };
 
   const updatedUsers = [...auth.users, newUser];
@@ -137,7 +171,7 @@ export const loginUser = createAsyncThunk<
   { email: string; password: string },
   { state: RootState; rejectValue: string }
 >('auth/loginUser', async ({ email, password }, { getState, rejectWithValue }) => {
-  const normalisedEmail = email.trim().toLowerCase();
+  const normalisedEmail = normaliseEmail(email);
   const providedPassword = password.trim();
 
   if (!normalisedEmail || !providedPassword) {
@@ -146,8 +180,16 @@ export const loginUser = createAsyncThunk<
 
   const { auth } = getState();
   const matchedUser = auth.users.find(
-    (user) => user.email.trim().toLowerCase() === normalisedEmail,
+    (user) => normaliseEmail(user.email) === normalisedEmail,
   );
+
+  if (matchedUser && matchedUser.authProvider !== 'email') {
+    return rejectWithValue(
+      `This account uses ${describeProvider(
+        matchedUser.authProvider,
+      )} authentication. Please sign in with ${describeProvider(matchedUser.authProvider)} instead.`,
+    );
+  }
 
   if (!matchedUser) {
     return rejectWithValue('No account found with that email');
@@ -159,6 +201,147 @@ export const loginUser = createAsyncThunk<
 
   if (matchedUser.status === 'suspended') {
     return rejectWithValue('This account has been suspended');
+  }
+
+  await persistCurrentUserId(matchedUser.id);
+  return matchedUser;
+});
+
+export const authenticateWithSocialProvider = createAsyncThunk<
+  StoredUserAccount,
+  { provider: SocialProvider },
+  { state: RootState; rejectValue: string }
+>(
+  'auth/authenticateWithSocialProvider',
+  async ({ provider }, { getState, rejectWithValue }) => {
+    try {
+      const profile = await fetchMockSocialProfile(provider);
+      const email = normaliseEmail(profile.email);
+
+      if (!email) {
+        return rejectWithValue('We could not get an email address from the provider.');
+      }
+
+      const { auth } = getState();
+      const existingUser = auth.users.find(
+        (user) => normaliseEmail(user.email) === email,
+      );
+
+      if (existingUser) {
+        if (existingUser.status === 'suspended') {
+          return rejectWithValue('This account has been suspended');
+        }
+
+        if (existingUser.authProvider !== 'email' && existingUser.authProvider !== provider) {
+          return rejectWithValue(
+            `This email is already linked to a ${describeProvider(
+              existingUser.authProvider,
+            )} account.`,
+          );
+        }
+
+        await persistCurrentUserId(existingUser.id);
+        return existingUser;
+      }
+
+      const newUser: StoredUserAccount = {
+        id: createId(provider),
+        fullName: profile.fullName,
+        email,
+        password: '',
+        role: 'user',
+        marketingOptIn: profile.marketingOptIn ?? false,
+        status: 'active',
+        createdAt: new Date().toISOString(),
+        biometricEnabled: false,
+        authProvider: provider,
+        phoneNumber: null,
+      };
+
+      const updatedUsers = [...auth.users, newUser];
+      await persistUsers(updatedUsers);
+      await persistCurrentUserId(newUser.id);
+
+      return newUser;
+    } catch (error) {
+      console.error('Failed to authenticate with social provider', error);
+      return rejectWithValue('Unable to authenticate with that provider right now.');
+    }
+  },
+);
+
+export const registerWithMobileNumber = createAsyncThunk<
+  StoredUserAccount,
+  { fullName: string; phoneNumber: string; marketingOptIn: boolean },
+  { state: RootState; rejectValue: string }
+>(
+  'auth/registerWithMobileNumber',
+  async ({ fullName, phoneNumber, marketingOptIn }, { getState, rejectWithValue }) => {
+    const trimmedName = fullName.trim();
+    if (!trimmedName) {
+      return rejectWithValue('Full name is required');
+    }
+
+    const normalisedPhone = normalisePhoneNumber(phoneNumber);
+    if (!normalisedPhone) {
+      return rejectWithValue('A mobile number is required');
+    }
+
+    const { auth } = getState();
+
+    const existing = auth.users.find((user) => user.phoneNumber === normalisedPhone);
+    if (existing) {
+      return rejectWithValue('An account with this mobile number already exists');
+    }
+
+    const newUser: StoredUserAccount = {
+      id: createId('mobile'),
+      fullName: trimmedName,
+      email: `${normalisedPhone}@mobile.football.app`,
+      password: '',
+      role: 'user',
+      marketingOptIn,
+      status: 'active',
+      createdAt: new Date().toISOString(),
+      biometricEnabled: false,
+      authProvider: 'mobile',
+      phoneNumber: normalisedPhone,
+    };
+
+    const updatedUsers = [...auth.users, newUser];
+    await persistUsers(updatedUsers);
+    await persistCurrentUserId(newUser.id);
+
+    return newUser;
+  },
+);
+
+export const loginWithMobileNumber = createAsyncThunk<
+  StoredUserAccount,
+  { phoneNumber: string },
+  { state: RootState; rejectValue: string }
+>('auth/loginWithMobileNumber', async ({ phoneNumber }, { getState, rejectWithValue }) => {
+  const normalisedPhone = normalisePhoneNumber(phoneNumber);
+
+  if (!normalisedPhone) {
+    return rejectWithValue('A mobile number is required');
+  }
+
+  const { auth } = getState();
+  const matchedUser = auth.users.find((user) => user.phoneNumber === normalisedPhone);
+
+  if (!matchedUser) {
+    return rejectWithValue('No account found with that mobile number');
+  }
+
+  if (matchedUser.status === 'suspended') {
+    return rejectWithValue('This account has been suspended');
+  }
+
+  if (matchedUser.authProvider !== 'mobile') {
+    return rejectWithValue(
+      `This account uses ${describeProvider(matchedUser.authProvider)} authentication.`,
+    );
   }
 
   await persistCurrentUserId(matchedUser.id);
@@ -332,6 +515,53 @@ const authSlice = createSlice({
         state.loading = false;
       })
       .addCase(loginUser.rejected, (state, action) => {
+        state.loading = false;
+        state.error = (action.payload as string) ?? action.error.message ?? null;
+      })
+      .addCase(authenticateWithSocialProvider.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(authenticateWithSocialProvider.fulfilled, (state, action) => {
+        const existingIndex = state.users.findIndex((user) => user.id === action.payload.id);
+        if (existingIndex === -1) {
+          state.users.push(action.payload);
+        } else {
+          state.users[existingIndex] = action.payload;
+        }
+        state.currentUserId = action.payload.id;
+        state.loading = false;
+      })
+      .addCase(authenticateWithSocialProvider.rejected, (state, action) => {
+        state.loading = false;
+        state.error = (action.payload as string) ?? action.error.message ?? null;
+      })
+      .addCase(registerWithMobileNumber.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(registerWithMobileNumber.fulfilled, (state, action) => {
+        state.users.push(action.payload);
+        state.currentUserId = action.payload.id;
+        state.loading = false;
+      })
+      .addCase(registerWithMobileNumber.rejected, (state, action) => {
+        state.loading = false;
+        state.error = (action.payload as string) ?? action.error.message ?? null;
+      })
+      .addCase(loginWithMobileNumber.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(loginWithMobileNumber.fulfilled, (state, action) => {
+        const existingIndex = state.users.findIndex((user) => user.id === action.payload.id);
+        if (existingIndex !== -1) {
+          state.users[existingIndex] = action.payload;
+        }
+        state.currentUserId = action.payload.id;
+        state.loading = false;
+      })
+      .addCase(loginWithMobileNumber.rejected, (state, action) => {
         state.loading = false;
         state.error = (action.payload as string) ?? action.error.message ?? null;
       })
