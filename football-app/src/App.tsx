@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Provider } from 'react-redux';
 import { AppRegistry, Platform, ActivityIndicator, View, Text, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -11,11 +12,12 @@ import CreateTeamScreen from './screens/CreateTeamScreen';
 import ManageTeamScreen from './screens/ManageTeamScreen';
 import TournamentScreen from './screens/TournamentScreen';
 import ProfileScreen from './screens/ProfileScreen';
+import CreateMatchScreen from './screens/CreateMatchScreen';
 import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
 import AdminDashboardScreen from './screens/AdminDashboardScreen';
 import { store } from './store';
-import { RootStackParamList } from './types/navigation';
+import { AuthenticatedTabParamList, RootStackParamList } from './types/navigation';
 import { useAppDispatch, useAppSelector } from './store/hooks';
 import { hydratePremium } from './store/slices/premiumSlice';
 import { loadPremiumEntitlement } from './services/premiumStorage';
@@ -25,6 +27,29 @@ import { hydrateTeams } from './store/slices/teamsSlice';
 import { loadStoredTeams, persistTeams as persistTeamsToStorage } from './services/teamStorage';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+const Tab = createBottomTabNavigator<AuthenticatedTabParamList>();
+
+const AuthenticatedTabs = () => (
+  <Tab.Navigator screenOptions={{ headerShown: false }}>
+    <Tab.Screen name="Dashboard" component={HomeScreen} options={{ tabBarLabel: 'Dashboard' }} />
+    <Tab.Screen
+      name="ManageTeams"
+      component={TeamScreen}
+      options={{ title: 'Manage Teams', tabBarLabel: 'Manage Teams' }}
+    />
+    <Tab.Screen
+      name="CreateMatch"
+      component={CreateMatchScreen}
+      options={{ title: 'Create a Match', tabBarLabel: 'Create a Match' }}
+    />
+    <Tab.Screen
+      name="Tournaments"
+      component={TournamentScreen}
+      options={{ tabBarLabel: 'Tournaments' }}
+    />
+    <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarLabel: 'Profile' }} />
+  </Tab.Navigator>
+);
 
 const PremiumBootstrapper = () => {
   const dispatch = useAppDispatch();
@@ -125,12 +150,13 @@ const RootNavigator = () => {
     <Stack.Navigator>
       {currentUser ? (
         <>
-          <Stack.Screen name="Home" component={HomeScreen} />
-          <Stack.Screen name="Team" component={TeamScreen} />
+          <Stack.Screen name="MainTabs" component={AuthenticatedTabs} options={{ headerShown: false }} />
           <Stack.Screen name="CreateTeam" component={CreateTeamScreen} />
-          <Stack.Screen name="ManageTeam" component={ManageTeamScreen} options={{ title: 'Manage Team' }} />
-          <Stack.Screen name="Tournaments" component={TournamentScreen} />
-          <Stack.Screen name="Profile" component={ProfileScreen} />
+          <Stack.Screen
+            name="ManageTeam"
+            component={ManageTeamScreen}
+            options={{ title: 'Manage Team' }}
+          />
           {currentUser.role === 'admin' && (
             <Stack.Screen
               name="AdminDashboard"

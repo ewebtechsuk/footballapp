@@ -15,6 +15,8 @@ import {
   DatePickerIOS,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { Product, ProductPurchase, PurchaseError } from 'react-native-iap';
 
@@ -65,14 +67,16 @@ import {
   updateBiometricPreference,
   updateMarketingPreference,
 } from '../store/slices/authSlice';
-import type { RootStackParamList } from '../types/navigation';
+import type { AuthenticatedTabParamList, RootStackParamList } from '../types/navigation';
 import { detectBiometricSupport, requestBiometricAuthentication } from '../services/biometricAuth';
 import type { BiometricSupport } from '../services/biometricAuth';
+import { generateTrainingPlans } from '../services/trainingPlans';
 
 const sanitizeProfile = (profile: ProfileState): ProfileState => ({
   fullName: profile.fullName.trim(),
   displayName: profile.displayName.trim(),
-  mobileNumber: profile.mobileNumber.trim(),
+  email: profile.email ? profile.email.trim().toLowerCase() : '',
+  mobileNumber: profile.mobileNumber ? profile.mobileNumber.trim() : '',
   dateOfBirth: profile.dateOfBirth.trim(),
   bio: profile.bio.trim(),
   address: {
@@ -131,8 +135,13 @@ const defaultDob = () => {
   return new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
 };
 
+type ProfileScreenNavigationProp = CompositeNavigationProp<
+  BottomTabNavigationProp<AuthenticatedTabParamList, 'Profile'>,
+  NativeStackNavigationProp<RootStackParamList>
+>;
+
 const ProfileScreen: React.FC = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = useNavigation<ProfileScreenNavigationProp>();
   const dispatch = useAppDispatch();
   const credits = useAppSelector((state) => state.wallet.credits);
   const premium = useAppSelector((state) => state.premium);
@@ -158,6 +167,10 @@ const ProfileScreen: React.FC = () => {
   const [checkingBiometricSupport, setCheckingBiometricSupport] = useState(false);
   const [biometricSupport, setBiometricSupport] = useState<BiometricSupport | null>(null);
   const [updatingBiometrics, setUpdatingBiometrics] = useState(false);
+  const trainingRecommendations = useMemo(
+    () => generateTrainingPlans(profileForm, premium.entitled),
+    [profileForm, premium.entitled],
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -189,6 +202,23 @@ const ProfileScreen: React.FC = () => {
   useEffect(() => {
     setProfileForm(profile);
   }, [profile]);
+
+  useEffect(() => {
+    if (!currentUser?.email) {
+      return;
+    }
+
+    setProfileForm((prev) => {
+      if (prev.email && prev.email.trim().length > 0) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        email: currentUser.email,
+      };
+    });
+  }, [currentUser?.email]);
 
   useEffect(() => {
     let cancelled = false;
@@ -230,7 +260,7 @@ const ProfileScreen: React.FC = () => {
   );
 
   const handleProfileFieldChange = (
-    key: 'fullName' | 'displayName' | 'mobileNumber' | 'dateOfBirth' | 'bio',
+    key: 'fullName' | 'displayName' | 'email' | 'mobileNumber' | 'dateOfBirth' | 'bio',
   ) => (value: string) => {
     setProfileForm((prev) => ({
       ...prev,
@@ -461,6 +491,14 @@ const ProfileScreen: React.FC = () => {
       sanitizedProfile.paymentMethods.includes(method),
     );
 
+    if (
+      sanitizedProfile.email &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sanitizedProfile.email.toLowerCase())
+    ) {
+      Alert.alert('Invalid email address', 'Please enter a valid email.');
+      return;
+    }
+
     if (sanitizedProfile.dateOfBirth) {
       const parsedDob = parseUkDate(sanitizedProfile.dateOfBirth);
       if (!parsedDob) {
@@ -479,6 +517,7 @@ const ProfileScreen: React.FC = () => {
     setSavingProfile(true);
     try {
       dispatch(updateProfile(sanitizedProfile));
+      setProfileForm(sanitizedProfile);
       await persistProfileToStorage(sanitizedProfile);
       Alert.alert('Profile updated', 'Your profile details have been saved.');
     } catch (error) {
@@ -895,6 +934,21 @@ const ProfileScreen: React.FC = () => {
               </View>
 
               <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Email</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={profileForm.email}
+                  onChangeText={handleProfileFieldChange('email')}
+                  placeholder="e.g. manager@club.co.uk"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  accessibilityLabel="Contact email"
+                  textContentType="emailAddress"
+                />
+              </View>
+
+              <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>Mobile number</Text>
                 <TextInput
                   style={styles.textInput}
@@ -1084,6 +1138,47 @@ const ProfileScreen: React.FC = () => {
               </TouchableOpacity>
             </>
           )}
+        </View>
+
+        <View style={styles.trainingSection}>
+          <Text style={styles.trainingHeading}>Personalised training plans</Text>
+          <Text style={styles.trainingSubtitle}>
+            Tailored sessions based on your profile, location, and premium access.
+          </Text>
+
+          {trainingRecommendations.unlocked.map((plan) => (
+            <View key={plan.id} style={styles.trainingCard}>
+              <View style={styles.trainingHeader}>
+                <Text style={styles.trainingTitle}>{plan.title}</Text>
+                <Text style={styles.trainingFocus}>{plan.focus.toUpperCase()}</Text>
+              </View>
+              <Text style={styles.trainingSummary}>{plan.summary}</Text>
+              <View style={styles.trainingTipList}>
+                {plan.tips.map((tip) => (
+                  <Text key={tip} style={styles.trainingTip}>
+                    • {tip}
+                  </Text>
+                ))}
+              </View>
+            </View>
+          ))}
+
+          {trainingRecommendations.locked.length > 0 ? (
+            <View style={styles.lockedTrainingCard}>
+              <Text style={styles.lockedTitle}>Premium-only insights</Text>
+              {trainingRecommendations.locked.map((plan) => (
+                <Text key={plan.id} style={styles.lockedSummary}>
+                  {plan.title} — unlock with Premium
+                </Text>
+              ))}
+              <TouchableOpacity
+                style={styles.lockedCta}
+                onPress={() => navigation.navigate('Profile')}
+              >
+                <Text style={styles.lockedCtaText}>View membership options</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.walletCard}>
@@ -1572,6 +1667,84 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: '#fff',
     fontWeight: '600',
+  },
+  trainingSection: {
+    marginTop: 24,
+    gap: 16,
+    backgroundColor: '#eef2ff',
+    borderRadius: 20,
+    padding: 20,
+  },
+  trainingHeading: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1d4ed8',
+  },
+  trainingSubtitle: {
+    fontSize: 13,
+    color: '#1e3a8a',
+  },
+  trainingCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: '#c7d2fe',
+  },
+  trainingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  trainingTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1d4ed8',
+  },
+  trainingFocus: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#4338ca',
+  },
+  trainingSummary: {
+    color: '#1e293b',
+    fontSize: 13,
+  },
+  trainingTipList: {
+    gap: 4,
+  },
+  trainingTip: {
+    color: '#1e293b',
+    fontSize: 12,
+  },
+  lockedTrainingCard: {
+    backgroundColor: '#ede9fe',
+    borderRadius: 16,
+    padding: 16,
+    gap: 8,
+  },
+  lockedTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#4c1d95',
+  },
+  lockedSummary: {
+    fontSize: 12,
+    color: '#4c1d95',
+  },
+  lockedCta: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    backgroundColor: '#4c1d95',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+  },
+  lockedCtaText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 12,
   },
   walletCard: {
     backgroundColor: '#f3f4f6',

@@ -13,6 +13,7 @@ const TournamentScreen: React.FC = () => {
   const dispatch = useAppDispatch();
   const credits = useAppSelector((state) => state.wallet.credits);
   const isPremium = useAppSelector((state) => state.premium.entitled);
+  const season = useAppSelector(selectTournamentSeason);
   const requestOptions = useMemo(() => ({ requestNonPersonalizedAdsOnly: true }), []);
   const { isLoaded, isClosed, load, show, reward, error } = useRewardedAd(
     tournamentRewardedAdUnitId,
@@ -51,6 +52,17 @@ const TournamentScreen: React.FC = () => {
       Alert.alert('Ad error', error.message);
     }
   }, [error]);
+
+  const handleJoinTier = (tierId: string, requiredCredits: number, tierName: string) => {
+    if (credits < requiredCredits) {
+      Alert.alert('Not enough credits', 'Earn more credits to unlock this ladder tier.');
+      return;
+    }
+
+    dispatch(debitWallet(requiredCredits));
+    dispatch(enrolInTier({ tierId }));
+    Alert.alert('Enrolled', `You are now competing in the ${tierName}. Good luck!`);
+  };
 
   return (
     <AuthenticatedScreenContainer style={styles.safeArea} contentStyle={styles.content}>
@@ -143,6 +155,100 @@ const styles = StyleSheet.create({
   premiumInsightsDetail: {
     fontSize: 13,
     color: '#3f6212',
+  },
+  ladderSection: {
+    marginTop: 24,
+    padding: 20,
+    borderRadius: 16,
+    backgroundColor: '#f0fdf4',
+    gap: 16,
+  },
+  ladderTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#166534',
+  },
+  ladderSubtitle: {
+    fontSize: 13,
+    color: '#166534',
+  },
+  standingCard: {
+    borderRadius: 12,
+    padding: 16,
+    backgroundColor: '#dcfce7',
+    gap: 4,
+  },
+  standingTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#166534',
+  },
+  standingMeta: {
+    fontSize: 12,
+    color: '#166534',
+  },
+  tierList: {
+    gap: 16,
+  },
+  tierCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    backgroundColor: '#ffffff',
+    padding: 16,
+    gap: 10,
+  },
+  tierCardActive: {
+    borderColor: '#16a34a',
+    shadowColor: '#16a34a',
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  tierHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  tierName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#166534',
+  },
+  tierCredits: {
+    color: '#047857',
+    fontWeight: '700',
+  },
+  tierDescription: {
+    color: '#14532d',
+    fontSize: 13,
+  },
+  tierMeta: {
+    fontSize: 12,
+    color: '#15803d',
+  },
+  tierInsights: {
+    gap: 4,
+  },
+  tierInsightBullet: {
+    fontSize: 12,
+    color: '#15803d',
+  },
+  joinButton: {
+    borderRadius: 999,
+    backgroundColor: '#16a34a',
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  joinButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+  activeBadge: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#16a34a',
   },
   premiumUpsell: {
     marginTop: 24,
