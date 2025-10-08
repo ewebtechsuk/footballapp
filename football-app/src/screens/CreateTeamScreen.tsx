@@ -6,7 +6,7 @@ import { useNavigation } from '@react-navigation/native';
 
 import { RootStackParamList } from '../types/navigation';
 import { useAppDispatch } from '../store/hooks';
-import { addTeam, defaultTeamSettings } from '../store/slices/teamsSlice';
+import { TeamMember, TeamRole, addTeam, defaultTeamSettings } from '../store/slices/teamsSlice';
 
 type CreateTeamScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'CreateTeam'>;
 
@@ -22,6 +22,22 @@ const CreateTeamScreen: React.FC = () => {
     [membersText],
   );
 
+  const determineRoleForIndex = (index: number): TeamRole => {
+    if (index === 0) {
+      return 'Goalkeeper';
+    }
+
+    if (index <= 4) {
+      return 'Defender';
+    }
+
+    if (index <= 8) {
+      return 'Midfielder';
+    }
+
+    return 'Forward';
+  };
+
   const handleSubmit = () => {
     if (!trimmedName) {
       Alert.alert('Missing team name', 'Please give your team a name before saving.');
@@ -29,7 +45,13 @@ const CreateTeamScreen: React.FC = () => {
     }
 
     const teamName = trimmedName;
-    const teamMembers = members;
+    const teamMembers: TeamMember[] = members.map((memberName, index) => ({
+      id: `${Date.now()}-${index}-${memberName.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+      name: memberName,
+      role: determineRoleForIndex(index),
+      position: null,
+      isCaptain: index === 0,
+    }));
 
     dispatch(
       addTeam({
