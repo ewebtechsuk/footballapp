@@ -2,14 +2,15 @@ import React, { useMemo } from 'react';
 import { StyleSheet, View, Text, FlatList, Button } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useNavigation } from '@react-navigation/native';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { CompositeNavigationProp, useNavigation } from '@react-navigation/native';
 
 import TeamCard from '../components/TeamCard';
 import BannerAdSlot from '../components/BannerAdSlot';
 import { defaultBannerSize, teamBannerAdUnitId } from '../config/ads';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { removeTeam, Team } from '../store/slices/teamsSlice';
-import { RootStackParamList } from '../types/navigation';
+import { AuthenticatedTabParamList, RootStackParamList } from '../types/navigation';
 import {
   formatKickoffTime,
   getFixtureStartDate,
@@ -18,7 +19,10 @@ import {
   selectTeamRecord,
 } from '../store/slices/scheduleSlice';
 
-type TeamScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Team'>;
+type TeamScreenNavigationProp = CompositeNavigationProp<
+  BottomTabNavigationProp<AuthenticatedTabParamList, 'ManageTeams'>,
+  NativeStackNavigationProp<RootStackParamList>
+>;
 
 
 const TeamScreen: React.FC = () => {
