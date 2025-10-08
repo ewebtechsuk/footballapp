@@ -2,6 +2,8 @@
 
 This plan converts the outstanding items from [`publishing-status.md`](./publishing-status.md) into an actionable workflow. Tasks are grouped by phase and sequenced so that prerequisites unblock downstream submission steps for Google Play and the Apple App Store.
 
+> **Launch focus.** The immediate objective is to ship the Android build to Google Play and cut a production web deployment. App Store submission will follow after the Google Play/web release stabilizes, so the plan below highlights the work that can progress now and flags the iOS tasks that should remain in the backlog until that milestone is complete.
+
 ## Phase 1 – Account access and legal readiness
 1. **Confirm developer program enrollment** *(see [Phase 1 playbook](./phase-1-account-legal-playbook.md))*
    - Verify active ownership of the Google Play Console and Apple Developer Program accounts.
@@ -47,21 +49,31 @@ This plan converts the outstanding items from [`publishing-status.md`](./publish
     - Complete an internal audit against Google Play policies and the App Store Review Guidelines.
     - Update the app or documentation to address any potential violations.
 
-## Phase 5 – Store submission execution
-13. **Prepare Google Play release**
+## Phase 5 – Launch execution (Google Play + Web)
+13. **Prepare production web deployment**
+    - Provision Firebase Hosting credentials (service account JSON or CI token) and store them in the appropriate secret manager.
+    - Verify the Node.js 20 deploy pipeline and rerun the automated deploy workflow until it succeeds end-to-end.
+    - Capture a smoke-test checklist for the web build (routing, auth, live data) and note the version that is pushed to production.
+14. **Prepare Google Play release**
     - Create the application record, populate the main store listing, and upload imagery.
     - Complete the App Content questionnaire, pricing & distribution, and upload the release AAB with notes.
     - Resolve pre-launch warnings, then submit the production release for review and monitor status.
-14. **Prepare App Store release**
-    - Create the App Store Connect app record with metadata, categories, age rating, and content rights.
+    - Record a "Play launch complete" date so the team knows when to kick off the App Store backlog.
+
+## Phase 6 – App Store submission (deferred until after Play/web launch)
+15. **Stage App Store assets and disclosures**
+    - Keep gathering metadata, screenshots, privacy responses, and signed builds so they are ready when the App Store window opens.
+    - Track open dependencies (e.g., consent UX parity, any iOS-specific features) in the issue tracker and assign owners ahead of time.
+16. **Execute App Store release**
+    - When the team is ready, create the App Store Connect app record with metadata, categories, age rating, and content rights.
     - Upload required screenshots, previews, and the signed IPA build.
     - Configure App Privacy responses, attach release notes, submit for review, and handle any feedback.
 
-## Phase 6 – Post-launch operations
-15. **Establish monitoring and feedback loops**
+## Phase 7 – Post-launch operations
+17. **Establish monitoring and feedback loops**
     - Configure analytics dashboards, crash reporting alerts, and review response processes.
     - Schedule periodic store listing refreshes and policy compliance reviews.
-16. **Plan release cadence**
+18. **Plan release cadence**
     - Define criteria for hotfixes versus feature releases.
     - Document a roadmap for post-launch iterations and assign owners.
 

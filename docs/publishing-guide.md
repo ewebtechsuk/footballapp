@@ -2,10 +2,12 @@
 
 This checklist summarizes the key steps required to launch the application on both Google Play and the Apple App Store.
 
+> **Release strategy:** Prioritize shipping the Android build to Google Play and deploying the production web app first. Keep gathering the Apple App Store assets in parallel, but plan to submit to Apple only after the Google Play/web release stabilizes.
+
 ## Prerequisites
 - **Developer accounts**
-  - Enroll in the [Google Play Console](https://play.google.com/console) with a one-time registration fee.
-  - Enroll in the [Apple Developer Program](https://developer.apple.com/programs/) and maintain the annual membership.
+  - Enroll in the [Google Play Console](https://play.google.com/console) with a one-time US\$25 USD registration fee (or the local-currency equivalent collected by Google).
+  - Enroll in the [Apple Developer Program](https://developer.apple.com/programs/) and maintain the annual US\$99 USD membership (waived for approved nonprofits, schools, or governments).
 - **App assets ready**
   - Final app name, description, keywords, and privacy policy URL.
   - High-resolution icon, feature graphics, and screenshots that meet the store guidelines for all targeted devices.
@@ -37,7 +39,13 @@ This checklist summarizes the key steps required to launch the application on bo
 5. Complete **Pre-launch checks** and resolve any warnings (e.g., policy issues, performance, security) reported by Google.
 6. Submit the release for **review** and monitor the review status until it is approved and published.
 
-## Apple App Store submission steps
+## Production web deployment steps
+1. Provision Firebase Hosting access by supplying either a service account key or deploy token to the CI/CD secret store.
+2. Update the deployment workflow to run on **Node.js 20**, confirm dependencies install without `EBADENGINE` warnings, and re-run the pipeline until the `firebase deploy` step succeeds.
+3. Smoke test the live site (navigation, authentication, live data, error pages) after each deployment and document the release version.
+4. Capture evidence of the deployed URL, timestamp, and any follow-up tickets opened from smoke-test findings.
+
+## Apple App Store submission steps *(queued after Google Play/web launch)*
 1. Log in to App Store Connect, create a new app record, and enter metadata (name, subtitle, description, keywords, support URL, marketing URL).
 2. Upload required **App Store assets**: screenshots for each device size, app previews, and promotional text.
 3. Provide the **App Privacy** responses and attach the privacy policy URL.
