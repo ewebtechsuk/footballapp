@@ -3,13 +3,13 @@
 This plan converts the outstanding items from [`publishing-status.md`](./publishing-status.md) into an actionable workflow. Tasks are grouped by phase and sequenced so that prerequisites unblock downstream submission steps for Google Play and the Apple App Store.
 
 ## Phase 1 – Account access and legal readiness
-1. **Confirm developer program enrollment**
+1. **Confirm developer program enrollment** *(see [Phase 1 playbook](./phase-1-account-legal-playbook.md))*
    - Verify active ownership of the Google Play Console and Apple Developer Program accounts.
    - Document billing owners and renewal reminders.
-2. **Finalize legal documents**
+2. **Finalize legal documents** *(see [Phase 1 playbook](./phase-1-account-legal-playbook.md))*
    - Draft or procure the public-facing privacy policy and terms of service.
    - Validate GDPR/CCPA consent language with legal counsel and outline the in-app consent flow.
-3. **Audit third-party licenses**
+3. **Audit third-party licenses** *(see [Phase 1 playbook](./phase-1-account-legal-playbook.md))*
    - Inventory bundled SDKs, libraries, fonts, and media.
    - Record license obligations and attach proof of compliance in the repository.
 
