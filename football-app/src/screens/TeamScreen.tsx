@@ -17,8 +17,15 @@ import {
   selectNextFixtureForTeam,
   selectTeamRecord,
 } from '../store/slices/scheduleSlice';
+import type { CommunicationStatus, TeamCommunication } from '../store/slices/communicationsSlice';
 
 type TeamScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Team'>;
+
+type CommunicationDigestEntry = {
+  title: string;
+  status: CommunicationStatus;
+  timestamp: string | null;
+};
 
 
 const TeamScreen: React.FC = () => {
@@ -69,6 +76,33 @@ const TeamScreen: React.FC = () => {
 
     return summary;
   });
+  const communicationDigest = useAppSelector((state) => {
+    const summary: Record<string, CommunicationDigestEntry> = {};
+    const allCommunications: TeamCommunication[] = state.communications.communications;
+
+    state.teams.teams.forEach((team) => {
+      const teamCommunications = allCommunications
+        .filter((communication) => communication.teamId === team.id)
+        .slice()
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      if (teamCommunications.length === 0) {
+        return;
+      }
+
+      const latestSent = teamCommunications.find((communication) => communication.status === 'sent');
+      const candidate = latestSent ?? teamCommunications[0];
+      const timestamp = candidate.status === 'scheduled' ? candidate.scheduledFor : candidate.createdAt;
+
+      summary[team.id] = {
+        title: candidate.title,
+        status: candidate.status,
+        timestamp: timestamp ?? null,
+      };
+    });
+
+    return summary;
+  });
 
   const featuredTeamFixtures = useMemo(() => {
     if (teams.length === 0) {
@@ -94,6 +128,7 @@ const TeamScreen: React.FC = () => {
               onManage={() => navigation.navigate('ManageTeam', { teamId: item.id })}
               record={scheduleSummary[item.id]?.record}
               nextFixtureLabel={scheduleSummary[item.id]?.nextFixtureLabel}
+              latestCommunication={communicationDigest[item.id]}
             />
           )}
           ListEmptyComponent={<Text style={styles.emptyText}>Create your first team to get started.</Text>}
