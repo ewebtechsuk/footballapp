@@ -1,80 +1,57 @@
 const fs = require('fs');
 const path = require('path');
+const { spawnSync } = require('child_process');
 
 const projectRoot = path.resolve(__dirname, '..');
 const expoProjectRoot = path.join(projectRoot, 'football-app-expo');
-const expoNodeModules = path.join(expoProjectRoot, 'node_modules');
-const packageJsonPath = path.join(projectRoot, 'package.json');
-const expoPackageJsonPath = path.join(expoProjectRoot, 'package.json');
+const expoNodeModules = path.join(projectRoot, 'football-app-expo', 'node_modules');
 const targetLink = path.join(projectRoot, 'node_modules');
 
-function installExpoDependencies(reason) {
-  console.log(`${reason}\nInstalling Expo workspace dependencies…`);
+const REQUIRED_PACKAGES = [
+  '@react-navigation/bottom-tabs',
+  '@react-navigation/native',
+  '@react-navigation/native-stack',
+  '@react-navigation/elements',
+  '@reduxjs/toolkit',
+];
 
-  const { spawnSync } = require('child_process');
-  const result = spawnSync('npm', ['install', '--no-audit', '--no-fund'], {
+function ensureExpoModulesExist() {
+  const missingPackages = [];
+
+  for (const pkg of REQUIRED_PACKAGES) {
+    const candidatePath = path.join(expoNodeModules, ...pkg.split('/'));
+    if (!fs.existsSync(candidatePath)) {
+      missingPackages.push(pkg);
+    }
+  }
+
+  if (missingPackages.length === 0) {
+    return;
+  }
+
+  console.log('Installing Expo workspace dependencies…');
+
+  const result = spawnSync('npm', ['install'], {
     cwd: expoProjectRoot,
     stdio: 'inherit',
-    shell: process.platform === 'win32',
+    env: {
+      ...process.env,
+      npm_config_loglevel: process.env.npm_config_loglevel ?? 'error',
+    },
   });
 
   if (result.status !== 0) {
-    throw new Error(`Failed to install Expo workspace dependencies (exit code ${result.status ?? 'unknown'}).`);
-  }
-}
-
-function readJson(filePath) {
-  try {
-    const raw = fs.readFileSync(filePath, 'utf8');
-    return JSON.parse(raw);
-  } catch (error) {
-    throw new Error(`Unable to read ${filePath}: ${error.message}`);
-  }
-}
-
-function listExpectedModules() {
-  const packageJson = readJson(packageJsonPath);
-  const expoPackageJson = readJson(expoPackageJsonPath);
-
-  const optionalShims = new Set(packageJson.optionalShims || []);
-  const expected = new Set([
-    ...(packageJson.localDependencies || []),
-    ...Object.keys(packageJson.vendoredDependencies || {}),
-    ...Object.keys(expoPackageJson.dependencies || {}),
-  ]);
-
-  // Some dependencies are intentionally shimmed for web/testing and are not
-  // expected to be installed in the Expo workspace. Allow the package.json to
-  // declare them via an optionalShims array so they do not trigger unnecessary
-  // installs during automation.
-  optionalShims.forEach((name) => expected.delete(name));
-
-  return Array.from(expected);
-}
-
-function ensureExpoModulesExist() {
-  if (!fs.existsSync(expoNodeModules)) {
-    installExpoDependencies(`Expected Expo dependencies at ${expoNodeModules}, but the directory was not found.`);
+    throw new Error('Failed to install Expo workspace dependencies.');
   }
 
-  const missingModules = () =>
-    listExpectedModules().filter((name) => {
-      const modulePath = path.join(expoNodeModules, ...name.split('/'));
-      return !fs.existsSync(modulePath);
-    });
+  const stillMissing = missingPackages.filter((pkg) => {
+    const candidatePath = path.join(expoNodeModules, ...pkg.split('/'));
+    return !fs.existsSync(candidatePath);
+  });
 
-  let missing = missingModules();
-
-  if (missing.length > 0) {
-    installExpoDependencies(
-      `Missing Expo dependencies detected (${missing.join(', ')}).`
-    );
-    missing = missingModules();
-  }
-
-  if (missing.length > 0) {
+  if (stillMissing.length) {
     throw new Error(
-      `Expo dependencies are still missing after installation: ${missing.join(', ')}`
+      `Expo workspace dependencies missing after install: ${stillMissing.join(', ')}`,
     );
   }
 }
