@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ActivityIndicator,
   Alert,
@@ -21,6 +20,7 @@ import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { Product, ProductPurchase, PurchaseError } from 'react-native-iap';
 
+import AuthenticatedScreenContainer from '../components/AuthenticatedScreenContainer';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { creditWallet } from '../store/slices/walletSlice';
 import type {
@@ -75,7 +75,8 @@ import { generateTrainingPlans } from '../services/trainingPlans';
 const sanitizeProfile = (profile: ProfileState): ProfileState => ({
   fullName: profile.fullName.trim(),
   displayName: profile.displayName.trim(),
-  mobileNumber: profile.mobileNumber.trim(),
+  email: profile.email ? profile.email.trim().toLowerCase() : '',
+  mobileNumber: profile.mobileNumber ? profile.mobileNumber.trim() : '',
   dateOfBirth: profile.dateOfBirth.trim(),
   bio: profile.bio.trim(),
   address: {
@@ -203,6 +204,23 @@ const ProfileScreen: React.FC = () => {
   }, [profile]);
 
   useEffect(() => {
+    if (!currentUser?.email) {
+      return;
+    }
+
+    setProfileForm((prev) => {
+      if (prev.email && prev.email.trim().length > 0) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        email: currentUser.email,
+      };
+    });
+  }, [currentUser?.email]);
+
+  useEffect(() => {
     let cancelled = false;
 
     const evaluateSupport = async () => {
@@ -242,7 +260,7 @@ const ProfileScreen: React.FC = () => {
   );
 
   const handleProfileFieldChange = (
-    key: 'fullName' | 'displayName' | 'mobileNumber' | 'dateOfBirth' | 'bio',
+    key: 'fullName' | 'displayName' | 'email' | 'mobileNumber' | 'dateOfBirth' | 'bio',
   ) => (value: string) => {
     setProfileForm((prev) => ({
       ...prev,
@@ -473,6 +491,14 @@ const ProfileScreen: React.FC = () => {
       sanitizedProfile.paymentMethods.includes(method),
     );
 
+    if (
+      sanitizedProfile.email &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sanitizedProfile.email.toLowerCase())
+    ) {
+      Alert.alert('Invalid email address', 'Please enter a valid email.');
+      return;
+    }
+
     if (sanitizedProfile.dateOfBirth) {
       const parsedDob = parseUkDate(sanitizedProfile.dateOfBirth);
       if (!parsedDob) {
@@ -491,6 +517,7 @@ const ProfileScreen: React.FC = () => {
     setSavingProfile(true);
     try {
       dispatch(updateProfile(sanitizedProfile));
+      setProfileForm(sanitizedProfile);
       await persistProfileToStorage(sanitizedProfile);
       Alert.alert('Profile updated', 'Your profile details have been saved.');
     } catch (error) {
@@ -763,7 +790,7 @@ const ProfileScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <AuthenticatedScreenContainer style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <Text style={styles.title}>Profile</Text>
@@ -903,6 +930,21 @@ const ProfileScreen: React.FC = () => {
                   placeholder="Name shown to other managers"
                   autoCapitalize="words"
                   accessibilityLabel="Display name"
+                />
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Email</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={profileForm.email}
+                  onChangeText={handleProfileFieldChange('email')}
+                  placeholder="e.g. manager@club.co.uk"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  accessibilityLabel="Contact email"
+                  textContentType="emailAddress"
                 />
               </View>
 
@@ -1327,7 +1369,7 @@ const ProfileScreen: React.FC = () => {
           </View>
         </Modal>
       )}
-    </SafeAreaView>
+    </AuthenticatedScreenContainer>
   );
 };
 
@@ -1340,6 +1382,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: 24,
     gap: 24,
+    paddingBottom: 48,
   },
   header: {
     alignItems: 'center',

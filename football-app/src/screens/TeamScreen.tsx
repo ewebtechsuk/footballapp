@@ -1,10 +1,10 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, View, Text, FlatList, Button } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { CompositeNavigationProp, useNavigation } from '@react-navigation/native';
 
+import AuthenticatedScreenContainer from '../components/AuthenticatedScreenContainer';
 import TeamCard from '../components/TeamCard';
 import BannerAdSlot from '../components/BannerAdSlot';
 import { defaultBannerSize, teamBannerAdUnitId } from '../config/ads';
@@ -18,6 +18,7 @@ import {
   selectNextFixtureForTeam,
   selectTeamRecord,
 } from '../store/slices/scheduleSlice';
+import type { CommunicationStatus, TeamCommunication } from '../store/slices/communicationsSlice';
 
 type TeamScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<AuthenticatedTabParamList, 'ManageTeams'>,
@@ -73,6 +74,33 @@ const TeamScreen: React.FC = () => {
 
     return summary;
   });
+  const communicationDigest = useAppSelector((state) => {
+    const summary: Record<string, CommunicationDigestEntry> = {};
+    const allCommunications: TeamCommunication[] = state.communications.communications;
+
+    state.teams.teams.forEach((team) => {
+      const teamCommunications = allCommunications
+        .filter((communication) => communication.teamId === team.id)
+        .slice()
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      if (teamCommunications.length === 0) {
+        return;
+      }
+
+      const latestSent = teamCommunications.find((communication) => communication.status === 'sent');
+      const candidate = latestSent ?? teamCommunications[0];
+      const timestamp = candidate.status === 'scheduled' ? candidate.scheduledFor : candidate.createdAt;
+
+      summary[team.id] = {
+        title: candidate.title,
+        status: candidate.status,
+        timestamp: timestamp ?? null,
+      };
+    });
+
+    return summary;
+  });
 
   const featuredTeamFixtures = useMemo(() => {
     if (teams.length === 0) {
@@ -84,108 +112,44 @@ const TeamScreen: React.FC = () => {
   }, [scheduleSummary, teams]);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.content}>
-        <Text style={styles.title}>My Teams</Text>
-        <FlatList
-          data={teams}
-          keyExtractor={(item: Team) => item.id}
-          contentContainerStyle={styles.listContent}
-          renderItem={({ item }: { item: Team }) => (
-            <TeamCard
-              team={item}
-              onRemove={() => dispatch(removeTeam(item.id))}
-              onManage={() => navigation.navigate('ManageTeam', { teamId: item.id })}
-              record={scheduleSummary[item.id]?.record}
-              nextFixtureLabel={scheduleSummary[item.id]?.nextFixtureLabel}
-            />
-          )}
-          ListEmptyComponent={<Text style={styles.emptyText}>Create your first team to get started.</Text>}
-        />
+    <AuthenticatedScreenContainer style={styles.safeArea} contentStyle={styles.content}>
+      <Text style={styles.title}>My Teams</Text>
+      <FlatList
+        data={teams}
+        keyExtractor={(item: Team) => item.id}
+        contentContainerStyle={styles.listContent}
+        renderItem={({ item }: { item: Team }) => (
+          <TeamCard
+            team={item}
+            onRemove={() => dispatch(removeTeam(item.id))}
+            onManage={() => navigation.navigate('ManageTeam', { teamId: item.id })}
+          />
+        )}
+        ListEmptyComponent={<Text style={styles.emptyText}>Create your first team to get started.</Text>}
+      />
 
-        {teams.length > 0 ? (
-          <View style={styles.scheduleSection}>
-            <Text style={styles.scheduleTitle}>Upcoming fixtures</Text>
-            <Text style={styles.scheduleSubtitle}>
-              Captains can manage kickoff votes and calendar sync from the Manage Team screen.
+      <View style={styles.analyticsSection}>
+        <Text style={styles.analyticsTitle}>Team analytics</Text>
+        {isPremium ? (
+          <View style={styles.analyticsContent}>
+            <Text style={styles.analyticsMetric}>Form (last 5): W • W • D • L • W</Text>
+            <Text style={styles.analyticsMetric}>Projected seed: #3 in current tournament</Text>
+            <Text style={styles.analyticsHint}>
+              These insights refresh automatically after each recorded match.
             </Text>
-            {featuredTeamFixtures.length === 0 ? (
-              <Text style={styles.emptyScheduleText}>
-                No upcoming matches yet. Propose one to get the squad organised.
-              </Text>
-            ) : (
-              featuredTeamFixtures.slice(0, 3).map((fixture) => {
-                const kickoffOption = fixture.acceptedKickoffOptionId
-                  ? fixture.kickoffOptions.find(
-                      (option) => option.id === fixture.acceptedKickoffOptionId,
-                    )
-                  : fixture.kickoffOptions
-                      .slice()
-                      .sort(
-                        (a, b) => new Date(a.isoTime).getTime() - new Date(b.isoTime).getTime(),
-                      )[0];
-
-                const kickoffLabel = kickoffOption
-                  ? formatKickoffTime(kickoffOption.isoTime)
-                  : 'Kickoff TBC';
-                const kickoffDate = getFixtureStartDate(fixture);
-                const relativeLabel = kickoffDate
-                  ? kickoffDate.toLocaleDateString(undefined, {
-                      weekday: 'short',
-                      month: 'short',
-                      day: 'numeric',
-                    })
-                  : 'Awaiting votes';
-
-                return (
-                  <View key={fixture.id} style={styles.fixtureCard}>
-                    <Text style={styles.fixtureOpponent}>{fixture.opponent}</Text>
-                    <Text style={styles.fixtureMeta}>{fixture.location}</Text>
-                    <Text style={styles.fixtureMeta}>{relativeLabel}</Text>
-                    <Text style={styles.fixtureKickoff}>{kickoffLabel}</Text>
-                    <Text style={styles.fixtureStatus}>
-                      {fixture.status === 'proposed'
-                        ? 'Voting in progress'
-                        : fixture.status === 'scheduled'
-                        ? fixture.calendarSynced
-                          ? 'Synced to calendar'
-                          : 'Ready to sync'
-                        : 'Result recorded'}
-                    </Text>
-                  </View>
-                );
-              })
-            )}
-            <Button
-              title="Manage scheduling"
-              onPress={() => navigation.navigate('ManageTeam', { teamId: teams[0].id })}
-            />
           </View>
-        ) : null}
-
-        <View style={styles.analyticsSection}>
-          <Text style={styles.analyticsTitle}>Team analytics</Text>
-          {isPremium ? (
-            <View style={styles.analyticsContent}>
-              <Text style={styles.analyticsMetric}>Form (last 5): W • W • D • L • W</Text>
-              <Text style={styles.analyticsMetric}>Projected seed: #3 in current tournament</Text>
-              <Text style={styles.analyticsHint}>
-                These insights refresh automatically after each recorded match.
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.analyticsUpsell}>
-              <Text style={styles.analyticsUpsellText}>
-                Upgrade to Football App Premium to unlock match insights and projections.
-              </Text>
-              <Button title="View premium" onPress={() => navigation.navigate('Profile')} />
-            </View>
-          )}
-        </View>
-        <Button title="Create New Team" onPress={() => navigation.navigate('CreateTeam')} />
+        ) : (
+          <View style={styles.analyticsUpsell}>
+            <Text style={styles.analyticsUpsellText}>
+              Upgrade to Football App Premium to unlock match insights and projections.
+            </Text>
+            <Button title="View premium" onPress={() => navigation.navigate('Profile')} />
+          </View>
+        )}
       </View>
+      <Button title="Create New Team" onPress={() => navigation.navigate('CreateTeam')} />
       <BannerAdSlot unitId={teamBannerAdUnitId} size={defaultBannerSize} />
-    </SafeAreaView>
+    </AuthenticatedScreenContainer>
   );
 };
 
@@ -195,9 +159,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9fafb',
   },
   content: {
-    flex: 1,
     paddingHorizontal: 16,
     paddingTop: 16,
+    gap: 16,
   },
   title: {
     fontSize: 24,

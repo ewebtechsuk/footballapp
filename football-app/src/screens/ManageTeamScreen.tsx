@@ -11,7 +11,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -25,6 +24,7 @@ import {
   defaultTeamSettings,
   updateTeam,
 } from '../store/slices/teamsSlice';
+import AuthenticatedScreenContainer from '../components/AuthenticatedScreenContainer';
 import PitchFormation from '../components/PitchFormation';
 import {
   acceptFixtureKickoff,
@@ -43,11 +43,84 @@ import {
   selectOpenPositionsForTeam,
   updateOpenPositionStatus,
 } from '../store/slices/scoutingSlice';
+import {
+  CommunicationAudience,
+  CommunicationCategory,
+  CommunicationChannel,
+  recordCommunicationResponse,
+  scheduleCommunication,
+  selectCommunicationStatsForTeam,
+  selectCommunicationsForTeam,
+  selectUpcomingCommunicationsForTeam,
+  updateCommunicationStatus,
+} from '../store/slices/communicationsSlice';
+import type { DiscoveredTeam, TeamDiscoveryScope } from '../services/teamDiscovery';
+import { searchTeams } from '../services/teamDiscovery';
 
 type ManageTeamRouteProp = RouteProp<RootStackParamList, 'ManageTeam'>;
 type ManageTeamNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ManageTeam'>;
 
 const TEAM_ROLES: TeamRole[] = ['Goalkeeper', 'Defender', 'Midfielder', 'Forward', 'Substitute'];
+
+const COMMUNICATION_CATEGORIES: {
+  value: CommunicationCategory;
+  label: string;
+  helper: string;
+}[] = [
+  {
+    value: 'announcement',
+    label: 'Announcement',
+    helper: 'Great for weekly touchpoints, training reminders, and community news.',
+  },
+  {
+    value: 'logistics',
+    label: 'Logistics',
+    helper: 'Share travel details, meeting points, and kit colours before matchday.',
+  },
+  {
+    value: 'lineup',
+    label: 'Lineup',
+    helper: 'Reveal the starting eleven and rotation plans once votes are collected.',
+  },
+  {
+    value: 'celebration',
+    label: 'Celebration',
+    helper: 'Recognise player milestones and post-match highlights to boost morale.',
+  },
+];
+
+const COMMUNICATION_CHANNELS: { value: CommunicationChannel; label: string }[] = [
+  { value: 'push', label: 'Push' },
+  { value: 'email', label: 'Email' },
+  { value: 'sms', label: 'SMS' },
+];
+
+const COMMUNICATION_AUDIENCES: {
+  value: CommunicationAudience;
+  label: string;
+  helper: string;
+}[] = [
+  {
+    value: 'everyone',
+    label: 'Whole squad',
+    helper: 'Send to every registered teammate for maximum visibility.',
+  },
+  {
+    value: 'captains',
+    label: 'Captains & staff',
+    helper: 'Target decision makers to align on tactics or club admin tasks.',
+  },
+  {
+    value: 'availablePlayers',
+    label: 'Available players',
+    helper: 'Nudge the players who marked themselves free for the next fixture.',
+  },
+  {
+    value: 'trialists',
+    label: 'Trialists',
+    helper: 'Keep prospects engaged with onboarding tips and schedule updates.',
+  },
+];
 
 const determineDefaultRole = (index: number): TeamRole => {
   if (index === 0) {
@@ -108,6 +181,50 @@ const ManageTeamScreen: React.FC = () => {
     'competitive',
   );
   const [positionDescription, setPositionDescription] = useState('');
+  const [communicationTitle, setCommunicationTitle] = useState('');
+  const [communicationMessage, setCommunicationMessage] = useState('');
+  const [communicationCategory, setCommunicationCategory] =
+    useState<CommunicationCategory>('announcement');
+  const [communicationAudience, setCommunicationAudience] =
+    useState<CommunicationAudience>('everyone');
+  const [communicationChannels, setCommunicationChannels] = useState<CommunicationChannel[]>([
+    'push',
+    'email',
+  ]);
+  const [communicationSchedule, setCommunicationSchedule] = useState('');
+  const [communicationReminderEnabled, setCommunicationReminderEnabled] = useState(true);
+  const [communicationRequiresResponse, setCommunicationRequiresResponse] = useState(false);
+  const [teamSearchQuery, setTeamSearchQuery] = useState('');
+  const [searchScope, setSearchScope] = useState<TeamDiscoveryScope>('local');
+  const [searchResults, setSearchResults] = useState<DiscoveredTeam[]>([]);
+  const [isSearchingTeams, setIsSearchingTeams] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const communications = useAppSelector((state) =>
+    selectCommunicationsForTeam(state, route.params.teamId),
+  );
+  const upcomingCommunications = useAppSelector((state) =>
+    selectUpcomingCommunicationsForTeam(state, route.params.teamId),
+  );
+  const communicationStats = useAppSelector((state) =>
+    selectCommunicationStatsForTeam(state, route.params.teamId),
+  );
+  const latestSentCommunication = useMemo(() => {
+    return communications.find((communication) => communication.status === 'sent') ?? null;
+  }, [communications]);
+  const lastCommunicationSummary = useMemo(() => {
+    if (!communicationStats.lastSentAt) {
+      return 'No updates sent yet — start with an availability check-in.';
+    }
+
+    const date = new Date(communicationStats.lastSentAt);
+    return `Last update sent ${date.toLocaleString(undefined, {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })}`;
+  }, [communicationStats.lastSentAt]);
 
   useEffect(() => {
     if (team) {
@@ -292,6 +409,92 @@ const ManageTeamScreen: React.FC = () => {
     }
 
     return candidate.toISOString();
+  };
+
+  const handleToggleCommunicationChannel = (channel: CommunicationChannel) => {
+    setCommunicationChannels((previous) => {
+      if (previous.includes(channel)) {
+        return previous.filter((value) => value !== channel);
+      }
+
+      return [...previous, channel];
+    });
+  };
+
+  const handlePlanCommunication = () => {
+    if (!route.params?.teamId) {
+      Alert.alert('Select a team', 'Create and save your team before sending updates.');
+      return;
+    }
+
+    const trimmedTitle = communicationTitle.trim();
+    const trimmedMessage = communicationMessage.trim();
+
+    if (!trimmedTitle || !trimmedMessage) {
+      Alert.alert('Add communication details', 'Include a title and message before sending.');
+      return;
+    }
+
+    if (communicationChannels.length === 0) {
+      Alert.alert('Select channels', 'Pick at least one delivery channel for this update.');
+      return;
+    }
+
+    let scheduledIso: string | null = null;
+    if (communicationSchedule.trim()) {
+      const parsed = parseKickoffInput(communicationSchedule);
+      if (!parsed) {
+        Alert.alert('Invalid time', 'Use YYYY-MM-DD HH:MM (24hr) when scheduling an update.');
+        return;
+      }
+
+      scheduledIso = parsed;
+    }
+
+    dispatch(
+      scheduleCommunication({
+        teamId: route.params.teamId,
+        title: trimmedTitle,
+        body: trimmedMessage,
+        category: communicationCategory,
+        audience: communicationAudience,
+        channels: communicationChannels,
+        scheduledFor: scheduledIso,
+        followUpReminderMinutes: communicationReminderEnabled ? 1440 : null,
+        requiresResponse: communicationRequiresResponse,
+        expectedResponders: communicationRequiresResponse ? members.length : 0,
+      }),
+    );
+
+    if (scheduledIso) {
+      Alert.alert('Update scheduled', 'We will deliver this message at the selected time.');
+    } else {
+      Alert.alert('Update sent', 'Your squad will receive the announcement immediately.');
+    }
+
+    setCommunicationTitle('');
+    setCommunicationMessage('');
+    setCommunicationSchedule('');
+    setCommunicationRequiresResponse(false);
+  };
+
+  const handleMarkCommunicationSent = (communicationId: string) => {
+    dispatch(updateCommunicationStatus({ id: communicationId, status: 'sent' }));
+    Alert.alert('Marked as sent', 'The communication timeline has been updated.');
+  };
+
+  const handleLogCommunicationResponse = (
+    communicationId: string,
+    response: 'confirmed' | 'declined',
+  ) => {
+    dispatch(recordCommunicationResponse({ id: communicationId, response }));
+
+    Alert.alert(
+      'Response logged',
+      response === 'confirmed'
+        ? 'Confirmation added. Keep nudging remaining players if needed.'
+        : 'Decline recorded. Adjust your lineup or follow up with them directly.',
+    );
   };
 
   const handleProposeFixture = () => {
@@ -548,30 +751,30 @@ const ManageTeamScreen: React.FC = () => {
 
   if (!teamId) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.content}>
+      <AuthenticatedScreenContainer style={styles.safeArea} contentStyle={styles.messageContainer}>
+        <View style={styles.messageCard}>
           <Text style={styles.title}>Team unavailable</Text>
           <Text style={styles.subtitle}>
             We could not determine which team you wanted to manage. Please go back and try again.
           </Text>
         </View>
-      </SafeAreaView>
+      </AuthenticatedScreenContainer>
     );
   }
 
   if (!team) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.content}>
+      <AuthenticatedScreenContainer style={styles.safeArea} contentStyle={styles.messageContainer}>
+        <View style={styles.messageCard}>
           <Text style={styles.title}>Team not found</Text>
           <Text style={styles.subtitle}>The team you are trying to manage could not be located.</Text>
         </View>
-      </SafeAreaView>
+      </AuthenticatedScreenContainer>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <AuthenticatedScreenContainer style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.section}>
           <Text style={styles.title}>Team details</Text>
@@ -740,6 +943,292 @@ const ManageTeamScreen: React.FC = () => {
               value={settings.autoCollectMatchStats}
               onValueChange={() => toggleSetting('autoCollectMatchStats')}
             />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Team communication</Text>
+          <Text style={styles.sectionSubtitle}>
+            Coordinate announcements, automate reminders, and capture squad feedback in one place.
+          </Text>
+
+          <View style={styles.communicationSummaryCard}>
+            <View style={styles.communicationSummaryRow}>
+              <View style={styles.communicationMetric}>
+                <Text style={styles.communicationMetricValue}>{communicationStats.sent}</Text>
+                <Text style={styles.communicationMetricLabel}>Sent</Text>
+              </View>
+              <View style={styles.communicationMetric}>
+                <Text style={styles.communicationMetricValue}>{communicationStats.upcoming}</Text>
+                <Text style={styles.communicationMetricLabel}>Scheduled</Text>
+              </View>
+              <View style={styles.communicationMetric}>
+                <Text style={styles.communicationMetricValue}>
+                  {communicationStats.averageResponseRate}%
+                </Text>
+                <Text style={styles.communicationMetricLabel}>Avg. response</Text>
+              </View>
+            </View>
+            <Text style={styles.communicationSummaryFooter}>{lastCommunicationSummary}</Text>
+            {latestSentCommunication ? (
+              <Text style={styles.communicationSummaryHighlight}>
+                Latest: {latestSentCommunication.title}
+              </Text>
+            ) : null}
+          </View>
+
+          <View style={styles.formField}>
+            <Text style={styles.label}>Template</Text>
+            <View style={styles.communicationChipRow}>
+              {COMMUNICATION_CATEGORIES.map((category) => {
+                const isActive = communicationCategory === category.value;
+                return (
+                  <TouchableOpacity
+                    key={category.value}
+                    style={[
+                      styles.communicationChip,
+                      isActive && styles.communicationChipActive,
+                    ]}
+                    onPress={() => setCommunicationCategory(category.value)}
+                  >
+                    <Text
+                      style={[
+                        styles.communicationChipText,
+                        isActive && styles.communicationChipTextActive,
+                      ]}
+                    >
+                      {category.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <Text style={styles.helperText}>
+              {COMMUNICATION_CATEGORIES.find((category) => category.value === communicationCategory)
+                ?.helper || ''}
+            </Text>
+          </View>
+
+          <View style={styles.formField}>
+            <Text style={styles.label}>Headline</Text>
+            <TextInput
+              value={communicationTitle}
+              onChangeText={setCommunicationTitle}
+              placeholder="e.g. Availability for Saturday"
+              style={styles.input}
+            />
+          </View>
+
+          <View style={[styles.formField, styles.communicationMessageField]}>
+            <Text style={styles.label}>Message</Text>
+            <TextInput
+              value={communicationMessage}
+              onChangeText={setCommunicationMessage}
+              placeholder="Cover kickoff time, travel plans, and kit colours."
+              style={[styles.input, styles.multilineInput]}
+              multiline
+            />
+          </View>
+
+          <View style={styles.formField}>
+            <Text style={styles.label}>Audience</Text>
+            <View style={styles.communicationAudienceList}>
+              {COMMUNICATION_AUDIENCES.map((audience) => {
+                const isActive = communicationAudience === audience.value;
+                return (
+                  <TouchableOpacity
+                    key={audience.value}
+                    style={[
+                      styles.communicationAudienceCard,
+                      isActive && styles.communicationAudienceCardActive,
+                    ]}
+                    onPress={() => setCommunicationAudience(audience.value)}
+                  >
+                    <Text style={styles.communicationAudienceTitle}>{audience.label}</Text>
+                    <Text
+                      style={[
+                        styles.communicationAudienceDescription,
+                        isActive && styles.communicationAudienceDescriptionActive,
+                      ]}
+                    >
+                      {audience.helper}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          <View style={styles.formField}>
+            <Text style={styles.label}>Channels</Text>
+            <View style={styles.communicationChannelRow}>
+              {COMMUNICATION_CHANNELS.map((channel) => {
+                const isActive = communicationChannels.includes(channel.value);
+                return (
+                  <TouchableOpacity
+                    key={channel.value}
+                    style={[
+                      styles.communicationChannelChip,
+                      isActive && styles.communicationChannelChipActive,
+                    ]}
+                    onPress={() => handleToggleCommunicationChannel(channel.value)}
+                  >
+                    <Text
+                      style={[
+                        styles.communicationChannelChipText,
+                        isActive && styles.communicationChannelChipTextActive,
+                      ]}
+                    >
+                      {channel.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <Text style={styles.helperText}>Select one or more channels for delivery.</Text>
+          </View>
+
+          <View style={styles.formField}>
+            <Text style={styles.label}>Send time (optional)</Text>
+            <TextInput
+              value={communicationSchedule}
+              onChangeText={setCommunicationSchedule}
+              placeholder="2024-07-18 19:30"
+              style={styles.input}
+            />
+            <Text style={styles.helperText}>Leave blank to send immediately.</Text>
+          </View>
+
+          <View style={styles.communicationToggleRow}>
+            <View style={styles.communicationToggleText}>
+              <Text style={styles.settingLabel}>Schedule reminder</Text>
+              <Text style={styles.settingDescription}>
+                We'll nudge teammates 24 hours before the event when this is enabled.
+              </Text>
+            </View>
+            <Switch
+              value={communicationReminderEnabled}
+              onValueChange={setCommunicationReminderEnabled}
+            />
+          </View>
+
+          <View style={styles.communicationToggleRow}>
+            <View style={styles.communicationToggleText}>
+              <Text style={styles.settingLabel}>Require RSVP</Text>
+              <Text style={styles.settingDescription}>
+                Track confirmations from {members.length} teammates and keep absences visible.
+              </Text>
+            </View>
+            <Switch
+              value={communicationRequiresResponse}
+              onValueChange={setCommunicationRequiresResponse}
+            />
+          </View>
+
+          <TouchableOpacity style={styles.primaryActionButton} onPress={handlePlanCommunication}>
+            <Text style={styles.primaryActionButtonText}>
+              {communicationSchedule.trim() ? 'Schedule update' : 'Send update'}
+            </Text>
+          </TouchableOpacity>
+
+          <View style={styles.communicationTimeline}>
+            <Text style={styles.timelineHeading}>Upcoming messages</Text>
+            {upcomingCommunications.length === 0 ? (
+              <Text style={styles.emptyState}>
+                No scheduled updates yet. Plan one so nobody misses vital information.
+              </Text>
+            ) : (
+              upcomingCommunications.map((communication) => (
+                <View key={communication.id} style={styles.timelineCard}>
+                  <Text style={styles.timelineTitle}>{communication.title}</Text>
+                  <Text style={styles.timelineMeta}>
+                    {communication.scheduledFor
+                      ? new Date(communication.scheduledFor).toLocaleString(undefined, {
+                          weekday: 'short',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
+                      : 'Send manually'}
+                  </Text>
+                  <Text style={styles.timelineMeta}>
+                    Channels: {communication.channels.join(', ')}
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.secondaryChip}
+                    onPress={() => handleMarkCommunicationSent(communication.id)}
+                  >
+                    <Text style={styles.secondaryChipText}>Mark as sent</Text>
+                  </TouchableOpacity>
+                </View>
+              ))
+            )}
+          </View>
+
+          <View style={styles.communicationTimeline}>
+            <Text style={styles.timelineHeading}>Recent delivery</Text>
+            {communications.filter((communication) => communication.status === 'sent').length === 0 ? (
+              <Text style={styles.emptyState}>
+                Send your first message to begin tracking player responses.
+              </Text>
+            ) : (
+              communications
+                .filter((communication) => communication.status === 'sent')
+                .slice(0, 3)
+                .map((communication) => {
+                  const audienceLabel =
+                    COMMUNICATION_AUDIENCES.find((audience) => audience.value === communication.audience)
+                      ?.label ?? communication.audience;
+                  return (
+                    <View key={communication.id} style={styles.timelineCard}>
+                      <Text style={styles.timelineTitle}>{communication.title}</Text>
+                      <Text style={styles.timelineMeta}>
+                        Sent{' '}
+                        {new Date(communication.createdAt).toLocaleString(undefined, {
+                          weekday: 'short',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </Text>
+                      <Text style={styles.timelineMeta}>Audience: {audienceLabel}</Text>
+                      {communication.requiresResponse ? (
+                        <>
+                          <View style={styles.responseRow}>
+                            <Text style={styles.responseStat}>
+                              {communication.responseSummary.confirmed} confirmed
+                            </Text>
+                            <Text style={styles.responseStat}>
+                              {communication.responseSummary.declined} declined
+                            </Text>
+                            <Text style={styles.responseStat}>
+                              {communication.responseSummary.awaiting} awaiting
+                            </Text>
+                          </View>
+                          <View style={styles.responseActions}>
+                            <TouchableOpacity
+                              style={[styles.secondaryChip, styles.responseActionChip]}
+                              onPress={() => handleLogCommunicationResponse(communication.id, 'confirmed')}
+                            >
+                              <Text style={styles.secondaryChipText}>Log confirm</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={[styles.secondaryChip, styles.responseActionChip]}
+                              onPress={() => handleLogCommunicationResponse(communication.id, 'declined')}
+                            >
+                              <Text style={styles.secondaryChipText}>Log decline</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </>
+                      ) : (
+                        <Text style={styles.timelineMeta}>No RSVP required for this update.</Text>
+                      )}
+                    </View>
+                  );
+                })
+            )}
           </View>
         </View>
 
@@ -1205,7 +1694,7 @@ const ManageTeamScreen: React.FC = () => {
           <Text style={styles.saveButtonText}>Save changes</Text>
         </TouchableOpacity>
       </ScrollView>
-    </SafeAreaView>
+    </AuthenticatedScreenContainer>
   );
 };
 
@@ -1214,11 +1703,22 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8fafc',
   },
-  content: {
+  messageContainer: {
     flex: 1,
-    padding: 24,
     justifyContent: 'center',
+    padding: 24,
+  },
+  messageCard: {
     backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    gap: 12,
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   scrollContent: {
     padding: 24,
@@ -1300,6 +1800,178 @@ const styles = StyleSheet.create({
   helperText: {
     fontSize: 12,
     color: '#64748b',
+  },
+  communicationSummaryCard: {
+    backgroundColor: '#eef2ff',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#c7d2fe',
+    gap: 12,
+  },
+  communicationSummaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  communicationMetric: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+  },
+  communicationMetricValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1d4ed8',
+  },
+  communicationMetricLabel: {
+    fontSize: 12,
+    color: '#475569',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  communicationSummaryFooter: {
+    fontSize: 12,
+    color: '#4c1d95',
+  },
+  communicationSummaryHighlight: {
+    fontSize: 13,
+    color: '#1e1b4b',
+    fontWeight: '600',
+  },
+  communicationChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  communicationChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#c7d2fe',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#fff',
+  },
+  communicationChipActive: {
+    backgroundColor: '#4338ca',
+    borderColor: '#4338ca',
+  },
+  communicationChipText: {
+    fontWeight: '600',
+    color: '#3730a3',
+  },
+  communicationChipTextActive: {
+    color: '#fff',
+  },
+  communicationMessageField: {
+    marginTop: 4,
+  },
+  communicationAudienceList: {
+    gap: 12,
+  },
+  communicationAudienceCard: {
+    borderWidth: 1,
+    borderColor: '#e0e7ff',
+    borderRadius: 14,
+    padding: 14,
+    backgroundColor: '#fff',
+    gap: 6,
+  },
+  communicationAudienceCardActive: {
+    borderColor: '#4338ca',
+    backgroundColor: '#ede9fe',
+  },
+  communicationAudienceTitle: {
+    fontWeight: '700',
+    color: '#312e81',
+  },
+  communicationAudienceDescription: {
+    fontSize: 12,
+    color: '#475569',
+    lineHeight: 18,
+  },
+  communicationAudienceDescriptionActive: {
+    color: '#312e81',
+  },
+  communicationChannelRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  communicationChannelChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: '#fff',
+  },
+  communicationChannelChipActive: {
+    backgroundColor: '#1d4ed8',
+    borderColor: '#1d4ed8',
+  },
+  communicationChannelChipText: {
+    color: '#1d4ed8',
+    fontWeight: '600',
+  },
+  communicationChannelChipTextActive: {
+    color: '#fff',
+  },
+  communicationToggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+  },
+  communicationToggleText: {
+    flex: 1,
+    gap: 4,
+  },
+  communicationTimeline: {
+    marginTop: 16,
+    gap: 12,
+  },
+  timelineHeading: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#312e81',
+  },
+  timelineCard: {
+    borderWidth: 1,
+    borderColor: '#ddd6fe',
+    borderRadius: 16,
+    padding: 16,
+    gap: 8,
+    backgroundColor: '#f5f3ff',
+  },
+  timelineTitle: {
+    fontWeight: '700',
+    color: '#312e81',
+    fontSize: 15,
+  },
+  timelineMeta: {
+    fontSize: 12,
+    color: '#4c1d95',
+  },
+  responseRow: {
+    flexDirection: 'row',
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+  responseStat: {
+    fontSize: 12,
+    color: '#1e1b4b',
+    fontWeight: '600',
+  },
+  responseActions: {
+    flexDirection: 'row',
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+  responseActionChip: {
+    backgroundColor: '#ede9fe',
+    borderColor: '#c4b5fd',
   },
   searchInput: {
     flex: 1,

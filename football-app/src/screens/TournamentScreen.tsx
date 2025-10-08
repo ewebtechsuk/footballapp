@@ -1,12 +1,11 @@
 import React, { useCallback, useEffect, useMemo } from 'react';
-import { StyleSheet, View, Text, Button, Alert, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, View, Text, Button, Alert } from 'react-native';
 import { useRewardedAd } from 'react-native-google-mobile-ads';
 
 import { tournamentRewardedAdUnitId } from '../config/ads';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { creditWallet, debitWallet } from '../store/slices/walletSlice';
-import { enrolInTier, selectTournamentSeason } from '../store/slices/tournamentsSlice';
+import { creditWallet } from '../store/slices/walletSlice';
+import AuthenticatedScreenContainer from '../components/AuthenticatedScreenContainer';
 
 const FALLBACK_REWARD_AMOUNT = 5;
 
@@ -66,103 +65,37 @@ const TournamentScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Tournaments</Text>
-        <Text style={styles.subtitle}>Earn credits to enter premium tournaments.</Text>
+    <AuthenticatedScreenContainer style={styles.safeArea} contentStyle={styles.content}>
+      <Text style={styles.title}>Tournaments</Text>
+      <Text style={styles.subtitle}>Earn credits to enter premium tournaments.</Text>
 
-        <View style={styles.rewardCard}>
-          <Text style={styles.rewardTitle}>Wallet Balance</Text>
-          <Text style={styles.rewardAmount}>{credits} credits</Text>
-          <Button
-            title={isLoaded ? 'Watch to earn entry credits' : 'Load rewarded ad'}
-            onPress={handleWatchToEarn}
-          />
-          {!isLoaded && (
-            <Text style={styles.helperText}>Tap the button again if the ad is still loading.</Text>
-          )}
-        </View>
-
-        <View style={styles.ladderSection}>
-          <Text style={styles.ladderTitle}>{season.seasonLabel}</Text>
-          <Text style={styles.ladderSubtitle}>
-            Promotion and relegation across three competitive tiers keeps every fixture meaningful.
-          </Text>
-
-          {season.currentStanding ? (
-            <View style={styles.standingCard}>
-              <Text style={styles.standingTitle}>Current standing</Text>
-              <Text style={styles.standingMeta}>
-                Tier: {season.ladderTiers.find((tier) => tier.id === season.currentStanding?.tierId)?.name ?? '—'}
-              </Text>
-              <Text style={styles.standingMeta}>
-                Position {season.currentStanding.position} • {season.currentStanding.points} pts
-              </Text>
-              <Text style={styles.standingMeta}>
-                W{season.currentStanding.wins} D{season.currentStanding.draws} L{season.currentStanding.losses} • GD {season.currentStanding.goalDifference}
-              </Text>
-            </View>
-          ) : null}
-
-          <View style={styles.tierList}>
-            {season.ladderTiers.map((tier) => {
-              const isActive = season.enrolledTierId === tier.id;
-              return (
-                <View
-                  key={tier.id}
-                  style={[styles.tierCard, isActive && styles.tierCardActive]}
-                >
-                  <View style={styles.tierHeader}>
-                    <Text style={styles.tierName}>{tier.name}</Text>
-                    <Text style={styles.tierCredits}>{tier.requiredCredits} credits</Text>
-                  </View>
-                  <Text style={styles.tierDescription}>{tier.description}</Text>
-                  <Text style={styles.tierMeta}>
-                    Promotion {tier.promotionSlots} • Relegation {tier.relegationSlots}
-                  </Text>
-                  <View style={styles.tierInsights}>
-                    {tier.analyticsHighlights.map((highlight) => (
-                      <Text key={highlight} style={styles.tierInsightBullet}>
-                        • {highlight}
-                      </Text>
-                    ))}
-                  </View>
-                  {isActive ? (
-                    <Text style={styles.activeBadge}>Currently enrolled</Text>
-                  ) : (
-                    <TouchableOpacity
-                      style={styles.joinButton}
-                      onPress={() => handleJoinTier(tier.id, tier.requiredCredits, tier.name)}
-                    >
-                      <Text style={styles.joinButtonText}>Join tier</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              );
-            })}
-          </View>
-        </View>
-
-        {isPremium ? (
-          <View style={styles.premiumInsights}>
-            <Text style={styles.premiumInsightsTitle}>Premium tournament insights</Text>
-            {season.recentInsights.slice(0, 3).map((insight) => (
-              <Text key={insight} style={styles.premiumInsightsDetail}>
-                {insight}
-              </Text>
-            ))}
-          </View>
-        ) : (
-          <View style={styles.premiumUpsell}>
-            <Text style={styles.premiumUpsellText}>
-              Premium members unlock live ladder analytics, opponent scouting, and workload trends.
-              Activate your membership from the Profile screen.
-            </Text>
-          </View>
+      <View style={styles.rewardCard}>
+        <Text style={styles.rewardTitle}>Wallet Balance</Text>
+        <Text style={styles.rewardAmount}>{credits} credits</Text>
+        <Button
+          title={isLoaded ? 'Watch to earn entry credits' : 'Load rewarded ad'}
+          onPress={handleWatchToEarn}
+        />
+        {!isLoaded && (
+          <Text style={styles.helperText}>Tap the button again if the ad is still loading.</Text>
         )}
       </View>
-    </SafeAreaView>
 
+      {isPremium ? (
+        <View style={styles.premiumInsights}>
+          <Text style={styles.premiumInsightsTitle}>Premium tournament insights</Text>
+          <Text style={styles.premiumInsightsDetail}>Next best event: Elite Cup (opens in 3 days)</Text>
+          <Text style={styles.premiumInsightsDetail}>Recommended entry fee budget: 120 credits</Text>
+        </View>
+      ) : (
+        <View style={styles.premiumUpsell}>
+          <Text style={styles.premiumUpsellText}>
+            Premium members get tournament recommendations tailored to their squad. Unlock from the
+            Profile screen.
+          </Text>
+        </View>
+      )}
+    </AuthenticatedScreenContainer>
   );
 };
 
@@ -172,8 +105,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   content: {
-    flex: 1,
     padding: 24,
+    gap: 20,
   },
   title: {
     fontSize: 28,

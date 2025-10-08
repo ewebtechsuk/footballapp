@@ -8,6 +8,7 @@ import scheduleReducer from './slices/scheduleSlice';
 import scoutingReducer from './slices/scoutingSlice';
 import tournamentsReducer from './slices/tournamentsSlice';
 import challengesReducer from './slices/challengesSlice';
+import communicationsReducer from './slices/communicationsSlice';
 import { authReducer } from './slices/authSlice';
 import { adminReducer } from './slices/adminSlice';
 
@@ -23,6 +24,7 @@ export const store = configureStore({
     challenges: challengesReducer,
     auth: authReducer,
     admin: adminReducer,
+    communications: communicationsReducer,
 
   },
 });
