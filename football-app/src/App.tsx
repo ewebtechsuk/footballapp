@@ -243,7 +243,7 @@ if (Platform.OS === 'web') {
       ? document.getElementById('root') ?? document.getElementById('main')
       : null;
 
-  if (rootTag && !rootTag.hasChildNodes()) {
+  if (rootTag) {
     AppRegistry.runApplication(applicationName, {
       initialProps: {},
       rootTag,
