@@ -122,6 +122,15 @@ const COMMUNICATION_AUDIENCES: {
   },
 ];
 
+const DEFAULT_COMMUNICATION_STATS = {
+  total: 0,
+  sent: 0,
+  upcoming: 0,
+  reminderCount: 0,
+  averageResponseRate: 0,
+  lastSentAt: null as string | null,
+};
+
 const determineDefaultRole = (index: number): TeamRole => {
   if (index === 0) {
     return 'Goalkeeper';
@@ -159,9 +168,11 @@ const ManageTeamScreen: React.FC = () => {
   const team = useAppSelector((state) =>
     teamId ? state.teams.teams.find((currentTeam) => currentTeam.id === teamId) : undefined,
   );
-  const fixtures = useAppSelector((state) => selectFixturesByTeam(state, route.params.teamId));
+  const fixtures = useAppSelector((state) =>
+    teamId ? selectFixturesByTeam(state, teamId) : [],
+  );
   const openPositions = useAppSelector((state) =>
-    selectOpenPositionsForTeam(state, route.params.teamId),
+    teamId ? selectOpenPositionsForTeam(state, teamId) : [],
   );
   const marketplaceFreeAgents = useAppSelector(selectFreeAgents);
 
@@ -200,13 +211,13 @@ const ManageTeamScreen: React.FC = () => {
   const [isSearchingTeams, setIsSearchingTeams] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const communications = useAppSelector((state) =>
-    selectCommunicationsForTeam(state, route.params.teamId),
+    teamId ? selectCommunicationsForTeam(state, teamId) : [],
   );
   const upcomingCommunications = useAppSelector((state) =>
-    selectUpcomingCommunicationsForTeam(state, route.params.teamId),
+    teamId ? selectUpcomingCommunicationsForTeam(state, teamId) : [],
   );
   const communicationStats = useAppSelector((state) =>
-    selectCommunicationStatsForTeam(state, route.params.teamId),
+    teamId ? selectCommunicationStatsForTeam(state, teamId) : DEFAULT_COMMUNICATION_STATS,
   );
   const latestSentCommunication = useMemo(() => {
     return communications.find((communication) => communication.status === 'sent') ?? null;
@@ -422,7 +433,7 @@ const ManageTeamScreen: React.FC = () => {
   };
 
   const handlePlanCommunication = () => {
-    if (!route.params?.teamId) {
+    if (!teamId) {
       Alert.alert('Select a team', 'Create and save your team before sending updates.');
       return;
     }
@@ -453,7 +464,7 @@ const ManageTeamScreen: React.FC = () => {
 
     dispatch(
       scheduleCommunication({
-        teamId: route.params.teamId,
+        teamId,
         title: trimmedTitle,
         body: trimmedMessage,
         category: communicationCategory,
@@ -501,6 +512,11 @@ const ManageTeamScreen: React.FC = () => {
     const trimmedOpponent = fixtureOpponent.trim();
     const trimmedLocation = fixtureLocation.trim();
 
+    if (!teamId) {
+      Alert.alert('Team unavailable', 'Create a team before proposing fixtures.');
+      return;
+    }
+
     if (!trimmedOpponent || !trimmedLocation) {
       Alert.alert('Missing fixture details', 'Add an opponent and location to propose a match.');
       return;
@@ -520,7 +536,7 @@ const ManageTeamScreen: React.FC = () => {
 
     dispatch(
       proposeFixture({
-        teamId: route.params.teamId,
+        teamId,
         opponent: trimmedOpponent,
         location: trimmedLocation,
         kickoffOptions: optionIsoStrings,
@@ -561,6 +577,11 @@ const ManageTeamScreen: React.FC = () => {
     const trimmedTitle = positionTitle.trim();
     const trimmedDescription = positionDescription.trim();
 
+    if (!teamId) {
+      Alert.alert('Team unavailable', 'Create a team before publishing listings.');
+      return;
+    }
+
     if (!trimmedTitle || !trimmedDescription) {
       Alert.alert('Add listing details', 'Describe the role and expectations before publishing.');
       return;
@@ -568,7 +589,7 @@ const ManageTeamScreen: React.FC = () => {
 
     dispatch(
       createOpenPosition({
-        teamId: route.params.teamId,
+        teamId,
         position: trimmedTitle,
         commitmentLevel: positionCommitment,
         description: trimmedDescription,
@@ -587,7 +608,12 @@ const ManageTeamScreen: React.FC = () => {
   };
 
   const handleInviteMarketplacePlayer = (freeAgentId: string, name: string) => {
-    dispatch(inviteFreeAgent({ freeAgentId, teamId: route.params.teamId }));
+    if (!teamId) {
+      Alert.alert('Team unavailable', 'Create a team before inviting free agents.');
+      return;
+    }
+
+    dispatch(inviteFreeAgent({ freeAgentId, teamId }));
     Alert.alert('Invite sent', `${name} has received your scouting invite.`);
   };
 
@@ -1513,7 +1539,9 @@ const ManageTeamScreen: React.FC = () => {
               <Text style={styles.emptyState}>Marketplace is quiet right now. Check back soon.</Text>
             ) : (
               marketplaceFreeAgents.map((agent) => {
-                const alreadyInvited = agent.invitedByTeamIds.includes(route.params.teamId);
+                const alreadyInvited = teamId
+                  ? agent.invitedByTeamIds.includes(teamId)
+                  : false;
                 return (
                   <View key={agent.id} style={styles.freeAgentCard}>
                     <View style={styles.freeAgentHeader}>
