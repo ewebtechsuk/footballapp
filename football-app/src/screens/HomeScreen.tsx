@@ -81,6 +81,16 @@ const featureHighlights = [
     copy:
       'Serve drills and wellness tips tuned to each player’s profile, with premium plans unlocking deeper insights.',
   },
+  {
+    title: 'Immersive match centre',
+    copy:
+      'Surface player heat maps, momentum charts, and substitution prompts in a tactile second-screen experience.',
+  },
+  {
+    title: 'Club-branded media wall',
+    copy:
+      'Showcase highlight reels, photography sets, and fan polls in a scrollable gallery that mirrors your crest.',
+  },
 ];
 
 const designOpportunities = [
@@ -88,6 +98,27 @@ const designOpportunities = [
   'Layer subtle gradients and club accent colours into team cards for clearer visual hierarchy.',
   'Add micro-interactions (progress pulses, celebratory confetti) when teams hit milestones or unlock rewards.',
   'Bring in a dark mode palette that echoes stadium floodlights for late-night strategising.',
+  'Craft a responsive typography scale that shifts from bold headings to whisper-quiet stats for readability.',
+  'Infuse motion design into onboarding with animated drill walkthroughs and formation reveals.',
+  'Bundle tactical presets with themed iconography so managers can visualise systems at a glance.',
+];
+
+const designFeatureSpotlights = [
+  {
+    title: 'Adaptive team hubs',
+    copy:
+      'Reflow squad dashboards depending on supporter role—managers see tactical boards while fans see story-driven recaps.',
+  },
+  {
+    title: 'Sensory match timeline',
+    copy:
+      'Blend haptics, colour-coded pulses, and audio stingers to dramatise kick-off, goals, and disciplinary moments.',
+  },
+  {
+    title: 'Augmented reality walkthroughs',
+    copy:
+      'Project locker room setups or set-piece rehearsals into physical space so crews can rehearse away from the pitch.',
+  },
 ];
 
 const formatTimeUntil = (isoDate: string): string => {
@@ -199,7 +230,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.heroCard}>
           <Text style={styles.eyebrow}>Matchday HQ</Text>
-          <Text style={styles.title}>{welcomeHeadline}</Text>
+          <Text style={styles.heroTitle}>{welcomeHeadline}</Text>
           <Text style={styles.helperText}>{helperCopy}</Text>
 
           <View style={styles.quickActionGrid}>
@@ -235,6 +266,18 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             {designOpportunities.map((idea) => (
               <View key={idea} style={styles.designIdea}>
                 <Text style={styles.designIdeaText}>{idea}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Design feature spotlights</Text>
+          <View style={styles.spotlightGrid}>
+            {designFeatureSpotlights.map((feature) => (
+              <View key={feature.title} style={styles.spotlightCard}>
+                <Text style={styles.spotlightTitle}>{feature.title}</Text>
+                <Text style={styles.spotlightCopy}>{feature.copy}</Text>
               </View>
             ))}
           </View>
@@ -457,6 +500,27 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#475569',
     lineHeight: 18,
+  },
+  spotlightGrid: {
+    gap: 16,
+  },
+  spotlightCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+    backgroundColor: '#eef2ff',
+    padding: 18,
+    gap: 8,
+  },
+  spotlightTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1e3a8a',
+  },
+  spotlightCopy: {
+    fontSize: 13,
+    color: '#1d4ed8',
+    lineHeight: 19,
   },
   designList: {
     gap: 12,

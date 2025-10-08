@@ -1,59 +1,142 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import {
+  NavigationState,
+  PartialState,
+  useNavigation,
+  useNavigationState,
+} from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useAppSelector } from '../store/hooks';
 import { selectCurrentUser } from '../store/slices/authSlice';
-import type { RootStackParamList } from '../types/navigation';
+import type {
+  AuthenticatedTabParamList,
+  RootStackParamList,
+} from '../types/navigation';
 
 export const NAVIGATION_HEIGHT = 72;
 
 type NavKey = 'Home' | 'Team' | 'Tournaments' | 'Profile' | 'AdminDashboard';
 
+type NavTarget =
+  | { type: 'tab'; screen: keyof AuthenticatedTabParamList }
+  | { type: 'stack'; route: Exclude<keyof RootStackParamList, 'MainTabs'> };
+
 interface NavItem {
   key: NavKey;
   label: string;
-  route: keyof RootStackParamList;
   description: string;
+  target: NavTarget;
 }
 
-const ROUTE_TO_KEY: Partial<Record<keyof RootStackParamList, NavKey>> = {
-  Home: 'Home',
-  Team: 'Team',
-  CreateTeam: 'Team',
-  ManageTeam: 'Team',
-  Tournaments: 'Tournaments',
-  Profile: 'Profile',
-  AdminDashboard: 'AdminDashboard',
+const deriveActiveTabName = (
+  state: NavigationState | PartialState<NavigationState>,
+): keyof AuthenticatedTabParamList | undefined => {
+  const route = state.routes[state.index ?? 0];
+
+  if (!route) {
+    return undefined;
+  }
+
+  const childState = (route as {
+    state?: NavigationState | PartialState<NavigationState>;
+  }).state;
+
+  if (childState) {
+    return deriveActiveTabName(childState);
+  }
+
+  return route.name as keyof AuthenticatedTabParamList;
+};
+
+const deriveActiveKeyFromState = (
+  state: NavigationState | PartialState<NavigationState>,
+): NavKey => {
+  const route = state.routes[state.index ?? 0];
+
+  if (!route) {
+    return 'Home';
+  }
+
+  if (route.name === 'MainTabs') {
+    const childState =
+      (route as {
+        state?: NavigationState | PartialState<NavigationState>;
+      }).state;
+    const activeTab = childState ? deriveActiveTabName(childState) : undefined;
+
+    switch (activeTab) {
+      case 'ManageTeams':
+      case 'CreateMatch':
+        return 'Team';
+      case 'Tournaments':
+        return 'Tournaments';
+      case 'Profile':
+        return 'Profile';
+      case 'Dashboard':
+      default:
+        return 'Home';
+    }
+  }
+
+  if (route.name === 'CreateTeam' || route.name === 'ManageTeam') {
+    return 'Team';
+  }
+
+  if (route.name === 'AdminDashboard') {
+    return 'AdminDashboard';
+  }
+
+  return 'Home';
 };
 
 const PersistentNavigation: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const route = useRoute();
+  const rootState = useNavigationState((state) => state);
   const currentUser = useAppSelector(selectCurrentUser);
 
   const navItems = useMemo<NavItem[]>(() => {
     const baseItems: NavItem[] = [
-      { key: 'Home', label: 'Home', route: 'Home', description: 'Overview' },
-      { key: 'Team', label: 'Teams', route: 'Team', description: 'Manage squads' },
-      { key: 'Tournaments', label: 'Tournaments', route: 'Tournaments', description: 'Compete' },
-      { key: 'Profile', label: 'Profile', route: 'Profile', description: 'Account' },
+      {
+        key: 'Home',
+        label: 'Home',
+        description: 'Overview',
+        target: { type: 'tab', screen: 'Dashboard' },
+      },
+      {
+        key: 'Team',
+        label: 'Teams',
+        description: 'Manage squads',
+        target: { type: 'tab', screen: 'ManageTeams' },
+      },
+      {
+        key: 'Tournaments',
+        label: 'Tournaments',
+        description: 'Compete',
+        target: { type: 'tab', screen: 'Tournaments' },
+      },
+      {
+        key: 'Profile',
+        label: 'Profile',
+        description: 'Account',
+        target: { type: 'tab', screen: 'Profile' },
+      },
     ];
 
     if (currentUser?.role === 'admin') {
       baseItems.splice(3, 0, {
         key: 'AdminDashboard',
         label: 'Admin',
-        route: 'AdminDashboard',
         description: 'Operations',
+        target: { type: 'stack', route: 'AdminDashboard' },
       });
     }
 
     return baseItems;
   }, [currentUser?.role]);
 
-  const activeKey = ROUTE_TO_KEY[route.name as keyof RootStackParamList] ?? 'Home';
+  const activeKey = useMemo(() => deriveActiveKeyFromState(rootState), [rootState]);
 
   return (
     <View style={styles.container}>
@@ -65,7 +148,14 @@ const PersistentNavigation: React.FC = () => {
             key={item.key}
             accessibilityRole="button"
             accessibilityState={{ selected: isActive }}
-            onPress={() => navigation.navigate(item.route)}
+            onPress={() => {
+              if (item.target.type === 'tab') {
+                navigation.navigate('MainTabs', { screen: item.target.screen });
+                return;
+              }
+
+              navigation.navigate(item.target.route);
+            }}
             style={[styles.navButton, isActive && styles.navButtonActive]}
           >
             <Text style={[styles.navLabel, isActive && styles.navLabelActive]}>{item.label}</Text>
