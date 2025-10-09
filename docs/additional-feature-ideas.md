@@ -26,3 +26,18 @@ This document captures high-level feature concepts that can guide future develop
 - Deliver training plans, nutrition advice, or recovery tips tailored to each user’s stored demographics and preferences.
 - Offer premium-gated content tiers that provide deeper guidance, video walkthroughs, or personalized coaching plans.
 - Use push notifications or in-app reminders to keep players on track with their selected regimens.
+
+## Collaborative Kit Lab Extensions
+- Layer in approval analytics that visualise squad sentiment trends across each kit revision, highlighting where feedback clusters.
+- Provide automated production checklists that track vendor milestones, sample sign-offs, and delivery ETAs alongside the design thread.
+- Introduce supporter-facing drops for limited edition merch once a kit is approved, tying purchases to the existing wallet system.
+
+## Team Communications Enhancements
+- Offer presence indicators and read receipts within the live chat so captains can confirm who has seen critical updates.
+- Allow message-level tasks (e.g. “Follow up on travel coach booking”) that sync with the team calendar and resolve automatically when marked complete.
+- Bundle contextual chat summaries after intense activity, using AI to recap action items and decisions for members who were offline.
+
+## Immersive Matchday Companion
+- Generate AI-driven tactical insights that surface during live match threads, such as suggested substitutions based on player fatigue trends.
+- Stream lightweight audio rooms where fans and players can co-host commentary during marquee fixtures.
+- Sync live match stats with wearable data for premium teams, unlocking deeper performance breakdowns post-game.
