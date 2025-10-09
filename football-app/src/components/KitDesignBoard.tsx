@@ -31,7 +31,11 @@ import {
   updateConceptTaskStatus,
   updateKitBrief,
 } from '../store/slices/kitDesignSlice';
-import { createContextualThread, selectThreadsByTeam } from '../store/slices/teamChatSlice';
+import {
+  createContextualThread,
+  linkThreadMetadata,
+  selectThreadsByTeam,
+} from '../store/slices/teamChatSlice';
 
 interface KitDesignBoardProps {
   teamId: string;
@@ -70,6 +74,23 @@ const KitDesignBoard: React.FC<KitDesignBoardProps> = ({ teamId, teamName }) => 
       dispatch(attachChatThread({ projectId: project.id, threadId: kitThread.id }));
     }
   }, [project, kitThread, dispatch]);
+
+  useEffect(() => {
+    if (!project || !kitThread) {
+      return;
+    }
+
+    if (kitThread.metadata?.relatedKitProjectId === project.id) {
+      return;
+    }
+
+    dispatch(
+      linkThreadMetadata({
+        threadId: kitThread.id,
+        metadata: { relatedKitProjectId: project.id },
+      }),
+    );
+  }, [project?.id, kitThread?.id, kitThread?.metadata?.relatedKitProjectId, dispatch]);
 
   useEffect(() => {
     if (!project) {

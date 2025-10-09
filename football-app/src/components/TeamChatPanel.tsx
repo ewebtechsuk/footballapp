@@ -8,6 +8,7 @@ import {
   createContextualThread,
   createPoll,
   markThreadResolved,
+  linkThreadMetadata,
   muteThread,
   pinMessage,
   postMessage,
@@ -27,6 +28,7 @@ const TeamChatPanel: React.FC<TeamChatPanelProps> = ({ teamId }) => {
   const threads = useAppSelector((state) => selectThreadsByTeam(state, teamId));
   const chatState = useAppSelector((state) => state.teamChat);
   const kitProjects = useAppSelector((state) => selectKitProjectsByTeam(state, teamId));
+  const activeKitProjectId = kitProjects[0]?.id;
   const kitThread = useMemo(() => threads.find((thread) => thread.type === 'kit'), [threads]);
   const matchdayThread = useMemo(
     () => threads.find((thread) => thread.type === 'matchday'),
@@ -78,6 +80,23 @@ const TeamChatPanel: React.FC<TeamChatPanelProps> = ({ teamId }) => {
       );
     }
   }, [matchdayThread, announcementThread, dispatch, teamId]);
+
+  useEffect(() => {
+    if (!kitThread || !activeKitProjectId) {
+      return;
+    }
+
+    if (kitThread.metadata?.relatedKitProjectId === activeKitProjectId) {
+      return;
+    }
+
+    dispatch(
+      linkThreadMetadata({
+        threadId: kitThread.id,
+        metadata: { relatedKitProjectId: activeKitProjectId },
+      }),
+    );
+  }, [kitThread?.id, kitThread?.metadata?.relatedKitProjectId, activeKitProjectId, dispatch]);
 
   const handleSendMessage = (threadId: string) => {
     const body = messageDrafts[threadId]?.trim();

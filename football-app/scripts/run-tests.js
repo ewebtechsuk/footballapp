@@ -51,4 +51,26 @@ function readSource(relativePath) {
   );
 })();
 
+(function verifyKitAndChatIntegration() {
+  const kitBoard = readSource('src/components/KitDesignBoard.tsx');
+  assert(
+    kitBoard.includes('linkThreadMetadata'),
+    'Kit design board should sync kit projects with the associated chat thread metadata',
+  );
+  assert(
+    kitBoard.includes('metadata: { relatedKitProjectId: project.id }'),
+    'Kit design board should link the active project to the contextual chat thread',
+  );
+
+  const teamChat = readSource('src/components/TeamChatPanel.tsx');
+  assert(
+    teamChat.includes('metadata: { relatedKitProjectId: kitProjects[0].id }'),
+    'Team chat panel should seed kit threads with the initial project metadata',
+  );
+  assert(
+    teamChat.includes('metadata: { relatedKitProjectId: activeKitProjectId }'),
+    'Team chat panel should keep the kit thread metadata in sync with the latest project',
+  );
+})();
+
 console.log('All assertions passed.');
