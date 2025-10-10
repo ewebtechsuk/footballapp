@@ -5,8 +5,8 @@ This document tracks the current completion status of each task in the mobile pu
 ## Prerequisites
 | Item | Status | Notes |
 | --- | --- | --- |
-| Google Play Console developer account enrollment | Outstanding | Requires confirmation of account ownership; no repository evidence available. |
-| Apple Developer Program enrollment | Outstanding | Requires confirmation of account ownership; no repository evidence available. |
+| Google Play Console developer account enrollment | Outstanding | Follow the step-by-step form guidance in `docs/publishing/ACCOUNTS.md`, then upload the masked enrollment screenshot and assign primary/billing contacts. |
+| Apple Developer Program enrollment | Outstanding | D-U-N-S record captured in `docs/publishing/ACCOUNTS.md`; need sanitized screenshot showing active membership and contact details. |
 | Store-ready app name, description, keywords, privacy policy URL | Outstanding | Store metadata has not been captured in the repository. |
 | High-resolution icons, feature graphics, screenshots | Outstanding | `assets/icons` only contains a placeholder file—store imagery still needs to be produced. |
 | Promotional video or trailer | Outstanding | No media assets or references are tracked in the repository. |
