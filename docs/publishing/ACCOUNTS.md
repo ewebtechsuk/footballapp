@@ -14,6 +14,14 @@ This document tracks high-level ownership details for the app store accounts use
 3. **Gather evidence before submission.** Have ready: the business legal name that matches the D-U-N-S record, support email, public phone number, physical address, and a payment card for the one-time US\$25 fee. Capture a masked screenshot of the completed form before submitting so it can be archived in `docs/publishing/evidence/accounts/`.
 4. **Submit and await identity verification.** After paying the fee and submitting the form, watch for the confirmation email. Google may request additional documents (e.g., utility bill or government registration). Save any correspondence and upload redacted copies to the evidence folder once received.
 
+#### Completing the final Google Play sign-up screen (last shared screenshot)
+- **Developer name:** Enter the public-facing business name that matches the D-U-N-S® record (`235588932`). This is what appears on the Google Play store listing.
+- **Contact email:** Use the official support or helpdesk mailbox that end users should reach out to (e.g., `support@footballapp.example`). Avoid personal inboxes.
+- **Contact phone:** Provide the business phone line monitored for store inquiries. Include the country code and ensure voicemail is configured.
+- **Website URL (if requested):** Supply the production marketing site or landing page for the Football App. If the site is still under construction, link to the best live page with basic product information.
+- **Business address:** Fill in the registered street address associated with the D-U-N-S® listing so Google can verify the legal entity.
+- **Archive proof:** Before clicking **Save**, capture a masked screenshot of the completed page and store it under `docs/publishing/evidence/accounts/` for audit purposes.
+
 ## Apple Developer Program (for future App Store submission)
 - **D-U-N-S® number:** `235588932`
 - **Program status:** Pending confirmation of enrollment
