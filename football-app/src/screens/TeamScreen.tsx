@@ -124,13 +124,21 @@ const TeamScreen: React.FC = () => {
         data={teams}
         keyExtractor={(item: Team) => item.id}
         contentContainerStyle={styles.listContent}
-        renderItem={({ item }: { item: Team }) => (
-          <TeamCard
-            team={item}
-            onRemove={() => dispatch(removeTeam(item.id))}
-            onManage={() => navigation.navigate('ManageTeam', { teamId: item.id })}
-          />
-        )}
+        renderItem={({ item }: { item: Team }) => {
+          const teamSummary = scheduleSummary[item.id];
+          const teamCommunication = communicationDigest[item.id];
+
+          return (
+            <TeamCard
+              team={item}
+              onRemove={() => dispatch(removeTeam(item.id))}
+              onManage={() => navigation.navigate('ManageTeam', { teamId: item.id })}
+              record={teamSummary?.record}
+              nextFixtureLabel={teamSummary?.nextFixtureLabel}
+              latestCommunication={teamCommunication}
+            />
+          );
+        }}
         ListEmptyComponent={<Text style={styles.emptyText}>Create your first team to get started.</Text>}
       />
 
