@@ -1,0 +1,2 @@
+Screenshot placeholder generated because the live site could not be captured.
+Reason: web driver unavailable: Selenium is not installed
