@@ -2,6 +2,48 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const ts = require('typescript');
+const Module = require('module');
+
+const defaultCompilerOptions = {
+  module: ts.ModuleKind.CommonJS,
+  target: ts.ScriptTarget.ES2019,
+  esModuleInterop: true,
+  jsx: ts.JsxEmit.React,
+  allowJs: true,
+  resolveJsonModule: true,
+  isolatedModules: true,
+};
+
+const registerExtension = (ext) => {
+  require.extensions[ext] = (module, filename) => {
+    const source = fs.readFileSync(filename, 'utf8');
+    const { outputText } = ts.transpileModule(source, {
+      compilerOptions: defaultCompilerOptions,
+      fileName: filename,
+    });
+
+    module._compile(outputText, filename);
+  };
+};
+
+registerExtension('.ts');
+registerExtension('.tsx');
+
+const originalModuleLoad = Module._load;
+Module._load = function patchedModuleLoad(request, parent, isMain) {
+  if (request === 'react-native') {
+    const React = require('react');
+    return {
+      StyleSheet: { create: (styles) => styles },
+      Text: (props) => React.createElement('Text', props, props.children),
+      View: (props) => React.createElement('View', props, props.children),
+      TouchableOpacity: (props) => React.createElement('TouchableOpacity', props, props.children),
+    };
+  }
+
+  return originalModuleLoad(request, parent, isMain);
+};
 
 const projectRoot = path.resolve(__dirname, '..');
 
@@ -71,6 +113,16 @@ function readSource(relativePath) {
     teamChat.includes('metadata: { relatedKitProjectId: activeKitProjectId }'),
     'Team chat panel should keep the kit thread metadata in sync with the latest project',
   );
+})();
+
+(function runTeamCardFormattingUnitTests() {
+  const { runTeamCardFormattingTests } = require('../src/tests/teamCardFormatting.test.tsx');
+  runTeamCardFormattingTests();
+})();
+
+(function runTeamScreenDataUnitTests() {
+  const { runTeamScreenDataTests } = require('../src/tests/teamScreenData.test');
+  runTeamScreenDataTests();
 })();
 
 console.log('All assertions passed.');
