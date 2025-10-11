@@ -2,7 +2,15 @@ import React from 'react';
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 
 import type { Team } from '../store/slices/teamsSlice';
-import type { CommunicationStatus } from '../store/slices/communicationsSlice';
+import type { Fixture } from '../store/slices/scheduleSlice';
+import { formatKickoffTime, getFixtureStartDate } from '../store/slices/scheduleSlice';
+
+interface CommunicationDigestEntry {
+  id: string;
+  sender: string;
+  message: string;
+  date: string;
+}
 
 interface TeamRecordSummary {
   wins: number;
@@ -16,11 +24,8 @@ interface TeamCardProps {
   onManage: () => void;
   record?: TeamRecordSummary;
   nextFixtureLabel?: string;
-  latestCommunication?: {
-    title: string;
-    status: CommunicationStatus;
-    timestamp: string | null;
-  };
+  nextFixtures: Fixture[];
+  communications: CommunicationDigestEntry[];
 }
 
 
@@ -30,23 +35,40 @@ const TeamCard: React.FC<TeamCardProps> = ({
   onManage,
   record,
   nextFixtureLabel,
-  latestCommunication,
+  nextFixtures,
+  communications,
 }) => {
   const hasRecord = record && (record.wins > 0 || record.draws > 0 || record.losses > 0);
-  const communicationTimestampLabel = latestCommunication?.timestamp
-    ? new Date(latestCommunication.timestamp).toLocaleString(undefined, {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : null;
-  const communicationHeading = latestCommunication
-    ? latestCommunication.status === 'scheduled'
-      ? 'Next update'
-      : 'Latest update'
-    : null;
+  const formattedNextFixtures = nextFixtures.map((fixture) => {
+    const startDate = getFixtureStartDate(fixture);
+    const kickoffLabel = startDate ? formatKickoffTime(startDate.toISOString()) : 'Kickoff TBC';
+
+    return {
+      id: fixture.id,
+      opponent: fixture.opponent,
+      kickoffLabel,
+      location: fixture.location,
+      status: fixture.status,
+    };
+  });
+
+  const communicationEntries = communications.map((entry) => {
+    const date = new Date(entry.date);
+    const formattedDate = Number.isNaN(date.getTime())
+      ? entry.date
+      : date.toLocaleString(undefined, {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+
+    return {
+      ...entry,
+      formattedDate,
+    };
+  });
 
   return (
     <View style={styles.card}>
@@ -69,15 +91,41 @@ const TeamCard: React.FC<TeamCardProps> = ({
         </View>
       ) : null}
 
-      {latestCommunication ? (
-        <View style={styles.communicationRow}>
-          {communicationHeading ? (
-            <Text style={styles.communicationLabel}>{communicationHeading}</Text>
-          ) : null}
-          <Text style={styles.communicationTitle}>{latestCommunication.title}</Text>
-          {communicationTimestampLabel ? (
-            <Text style={styles.communicationMeta}>{communicationTimestampLabel}</Text>
-          ) : null}
+      {formattedNextFixtures.length > 0 ? (
+        <View style={styles.highlightedFixture}>
+          <Text style={styles.sectionTitle}>Upcoming fixtures</Text>
+          {formattedNextFixtures.map((fixture, index) => (
+            <View
+              key={fixture.id}
+              style={[
+                styles.fixtureItem,
+                index === formattedNextFixtures.length - 1 && styles.fixtureItemLast,
+              ]}
+            >
+              <Text style={styles.fixtureOpponent}>{fixture.opponent}</Text>
+              <Text style={styles.fixtureMeta}>{fixture.kickoffLabel}</Text>
+              <Text style={styles.fixtureMeta}>{fixture.location}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
+      {communicationEntries.length > 0 ? (
+        <View style={styles.communicationSection}>
+          <Text style={styles.sectionTitle}>Recent communications</Text>
+          {communicationEntries.map((entry, index) => (
+            <View
+              key={entry.id}
+              style={[
+                styles.communicationItem,
+                index === communicationEntries.length - 1 && styles.communicationItemLast,
+              ]}
+            >
+              <Text style={styles.communicationSender}>{entry.sender}</Text>
+              <Text style={styles.communicationMessage}>{entry.message}</Text>
+              <Text style={styles.communicationTimestamp}>{entry.formattedDate}</Text>
+            </View>
+          ))}
         </View>
       ) : null}
 
@@ -147,26 +195,65 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#1e293b',
   },
-  communicationRow: {
+  highlightedFixture: {
     marginTop: 12,
     backgroundColor: '#f1f5f9',
     borderRadius: 10,
     padding: 12,
-    gap: 4,
+    gap: 8,
   },
-  communicationLabel: {
-    fontSize: 12,
-    color: '#0369a1',
+  sectionTitle: {
+    fontSize: 13,
     fontWeight: '700',
+    color: '#0f172a',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  communicationTitle: {
+  fixtureItem: {
+    borderRadius: 8,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  fixtureItemLast: {
+    borderBottomWidth: 0,
+  },
+  fixtureOpponent: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1e293b',
+  },
+  fixtureMeta: {
+    fontSize: 12,
+    color: '#475569',
+  },
+  communicationSection: {
+    marginTop: 12,
+    backgroundColor: '#f8fafc',
+    borderRadius: 10,
+    padding: 12,
+    gap: 8,
+  },
+  communicationItem: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+    paddingBottom: 8,
+  },
+  communicationItemLast: {
+    borderBottomWidth: 0,
+    paddingBottom: 0,
+  },
+  communicationSender: {
+    fontSize: 12,
+    color: '#0369a1',
+    fontWeight: '700',
+  },
+  communicationMessage: {
     fontSize: 14,
     color: '#0f172a',
     fontWeight: '600',
   },
-  communicationMeta: {
+  communicationTimestamp: {
     fontSize: 12,
     color: '#475569',
   },
