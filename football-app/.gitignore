@@ -4,3 +4,4 @@ dist
 .firebase
 .env
 .env.local
+android/gradle/wrapper/gradle-wrapper.jar

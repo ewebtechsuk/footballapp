@@ -1,12 +1,87 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+static String resolveSigningValue(Project project, String name) {
+    String envValue = System.getenv(name)
+    if (envValue != null && !envValue.isEmpty()) {
+        return envValue
+    }
+    Object propertyValue = project.findProperty(name)
+    return propertyValue == null ? null : propertyValue.toString()
+}
+
 android {
+    namespace 'com.footballapp'
+    compileSdk 34
+
     defaultConfig {
+        applicationId 'com.footballapp'
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+
         manifestPlaceholders = [
-            googleMobileAdsAppId: System.getenv("GOOGLE_MOBILE_ADS_APP_ID")
-                ?: "ca-app-pub-3940256099942544~3347511713"
+            googleMobileAdsAppId: System.getenv('GOOGLE_MOBILE_ADS_APP_ID')
+                ?: 'ca-app-pub-3940256099942544~3347511713'
         ]
+    }
+
+    signingConfigs {
+        def storeFilePath = resolveSigningValue(project, 'MYAPP_UPLOAD_STORE_FILE')
+        if (storeFilePath) {
+            def configuredStoreFile = file(storeFilePath)
+            if (configuredStoreFile.exists()) {
+                release {
+                    storeFile configuredStoreFile
+                    storePassword resolveSigningValue(project, 'MYAPP_UPLOAD_STORE_PASSWORD')
+                    keyAlias resolveSigningValue(project, 'MYAPP_UPLOAD_KEY_ALIAS')
+                    keyPassword resolveSigningValue(project, 'MYAPP_UPLOAD_KEY_PASSWORD')
+                }
+            } else {
+                logger.lifecycle("[football-app] Keystore '${configuredStoreFile.path}' not found. Release builds will use the default debug signing config.")
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix '.debug'
+            versionNameSuffix '-debug'
+        }
+        release {
+            minifyEnabled false
+            shrinkResources false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+
+            if (signingConfigs.findByName('release')) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    buildFeatures {
+        buildConfig true
     }
 }
 
 dependencies {
-    implementation "com.android.billingclient:billing:6.1.0"
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.9.25'
+    implementation 'androidx.core:core-ktx:1.13.1'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'com.google.android.material:material:1.12.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'com.google.android.gms:play-services-ads:23.4.0'
+    implementation 'com.android.billingclient:billing:6.1.0'
 }
