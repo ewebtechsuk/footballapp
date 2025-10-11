@@ -20,6 +20,12 @@ import {
 } from '../store/slices/scheduleSlice';
 import type { CommunicationStatus, TeamCommunication } from '../store/slices/communicationsSlice';
 
+type CommunicationDigestEntry = {
+  title: string;
+  status: CommunicationStatus;
+  timestamp: string | null;
+};
+
 type TeamScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<AuthenticatedTabParamList, 'ManageTeams'>,
   NativeStackNavigationProp<RootStackParamList>
