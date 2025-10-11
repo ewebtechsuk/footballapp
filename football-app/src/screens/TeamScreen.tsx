@@ -9,7 +9,7 @@ import TeamCard from '../components/TeamCard';
 import BannerAdSlot from '../components/BannerAdSlot';
 import { defaultBannerSize, teamBannerAdUnitId } from '../config/ads';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { removeTeam, Team } from '../store/slices/teamsSlice';
+import { removeTeam } from '../store/slices/teamsSlice';
 import { AuthenticatedTabParamList, RootStackParamList } from '../types/navigation';
 import {
   formatKickoffTime,
@@ -17,14 +17,16 @@ import {
   selectFixturesByTeam,
   selectNextFixtureForTeam,
   selectTeamRecord,
+  type Fixture,
 } from '../store/slices/scheduleSlice';
-import type { CommunicationStatus, TeamCommunication } from '../store/slices/communicationsSlice';
+import type { TeamCommunication } from '../store/slices/communicationsSlice';
 
-type CommunicationDigestEntry = {
-  title: string;
-  status: CommunicationStatus;
-  timestamp: string | null;
-};
+interface CommunicationDigestEntry {
+  id: string;
+  sender: string;
+  message: string;
+  date: string; // ISO date string
+}
 
 type TeamScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<AuthenticatedTabParamList, 'ManageTeams'>,
@@ -43,16 +45,20 @@ const TeamScreen: React.FC = () => {
       {
         record: { wins: number; draws: number; losses: number };
         nextFixtureLabel?: string;
-        upcomingFixtures: ReturnType<typeof selectFixturesByTeam>;
+        nextFixtures: Fixture[];
       }
     > = {};
 
     state.teams.teams.forEach((team) => {
       const record = selectTeamRecord(state, team.id);
       const nextFixture = selectNextFixtureForTeam(state, team.id);
-      const upcomingFixtures = selectFixturesByTeam(state, team.id).filter(
-        (fixture) => fixture.status !== 'completed',
-      );
+      const upcomingFixtures = selectFixturesByTeam(state, team.id)
+        .filter((fixture) => fixture.status !== 'completed')
+        .sort((a, b) => {
+          const aDate = getFixtureStartDate(a)?.getTime() ?? Number.POSITIVE_INFINITY;
+          const bDate = getFixtureStartDate(b)?.getTime() ?? Number.POSITIVE_INFINITY;
+          return aDate - bDate;
+        });
 
       let nextFixtureLabel: string | undefined;
       if (nextFixture) {
@@ -74,68 +80,69 @@ const TeamScreen: React.FC = () => {
       summary[team.id] = {
         record,
         nextFixtureLabel,
-        upcomingFixtures,
+        nextFixtures: upcomingFixtures.slice(0, 3),
       };
     });
 
     return summary;
   });
   const communicationDigest = useAppSelector((state) => {
-    const summary: Record<string, CommunicationDigestEntry> = {};
+    const summary: Record<string, CommunicationDigestEntry[]> = {};
     const allCommunications: TeamCommunication[] = state.communications.communications;
 
     state.teams.teams.forEach((team) => {
       const teamCommunications = allCommunications
         .filter((communication) => communication.teamId === team.id)
         .slice()
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 3)
+        .map((communication) => ({
+          id: communication.id,
+          sender: 'Team Staff',
+          message: communication.title,
+          date:
+            communication.status === 'scheduled' && communication.scheduledFor
+              ? communication.scheduledFor
+              : communication.createdAt,
+        }));
 
-      if (teamCommunications.length === 0) {
-        return;
+      if (teamCommunications.length > 0) {
+        summary[team.id] = teamCommunications;
       }
-
-      const latestSent = teamCommunications.find((communication) => communication.status === 'sent');
-      const candidate = latestSent ?? teamCommunications[0];
-      const timestamp = candidate.status === 'scheduled' ? candidate.scheduledFor : candidate.createdAt;
-
-      summary[team.id] = {
-        title: candidate.title,
-        status: candidate.status,
-        timestamp: timestamp ?? null,
-      };
     });
 
     return summary;
   });
 
-  const featuredTeamFixtures = useMemo(() => {
-    if (teams.length === 0) {
-      return [];
-    }
-
-    const firstTeam = teams[0];
-    return scheduleSummary[firstTeam.id]?.upcomingFixtures ?? [];
-  }, [scheduleSummary, teams]);
+  const teamCardsData = useMemo(
+    () =>
+      teams.map((team) => ({
+        team,
+        record: scheduleSummary[team.id]?.record,
+        nextFixtureLabel: scheduleSummary[team.id]?.nextFixtureLabel,
+        nextFixtures: scheduleSummary[team.id]?.nextFixtures ?? [],
+        communications: communicationDigest[team.id] ?? [],
+      })),
+    [communicationDigest, scheduleSummary, teams],
+  );
 
   return (
     <AuthenticatedScreenContainer style={styles.safeArea} contentStyle={styles.content}>
       <Text style={styles.title}>My Teams</Text>
       <FlatList
-        data={teams}
-        keyExtractor={(item: Team) => item.id}
+        data={teamCardsData}
+        keyExtractor={(item) => item.team.id}
         contentContainerStyle={styles.listContent}
-        renderItem={({ item }: { item: Team }) => {
-          const teamSummary = scheduleSummary[item.id];
-          const teamCommunication = communicationDigest[item.id];
-
+        renderItem={({ item }) => {
           return (
             <TeamCard
-              team={item}
-              onRemove={() => dispatch(removeTeam(item.id))}
-              onManage={() => navigation.navigate('ManageTeam', { teamId: item.id })}
-              record={teamSummary?.record}
-              nextFixtureLabel={teamSummary?.nextFixtureLabel}
-              latestCommunication={teamCommunication}
+              team={item.team}
+              onRemove={() => dispatch(removeTeam(item.team.id))}
+              onManage={() => navigation.navigate('ManageTeam', { teamId: item.team.id })}
+              record={item.record}
+              nextFixtureLabel={item.nextFixtureLabel}
+              nextFixtures={item.nextFixtures}
+              communications={item.communications}
             />
           );
         }}
