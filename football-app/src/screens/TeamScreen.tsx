@@ -12,21 +12,10 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { removeTeam } from '../store/slices/teamsSlice';
 import { AuthenticatedTabParamList, RootStackParamList } from '../types/navigation';
 import {
-  formatKickoffTime,
-  getFixtureStartDate,
-  selectFixturesByTeam,
-  selectNextFixtureForTeam,
-  selectTeamRecord,
-  type Fixture,
-} from '../store/slices/scheduleSlice';
-import type { TeamCommunication } from '../store/slices/communicationsSlice';
-
-interface CommunicationDigestEntry {
-  id: string;
-  sender: string;
-  message: string;
-  date: string; // ISO date string
-}
+  buildCommunicationDigest,
+  buildScheduleSummary,
+  buildTeamCardsData,
+} from './teamScreenData';
 
 type TeamScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<AuthenticatedTabParamList, 'ManageTeams'>,
@@ -39,90 +28,13 @@ const TeamScreen: React.FC = () => {
   const teams = useAppSelector((state) => state.teams.teams);
   const isPremium = useAppSelector((state) => state.premium.entitled);
   const navigation = useNavigation<TeamScreenNavigationProp>();
-  const scheduleSummary = useAppSelector((state) => {
-    const summary: Record<
-      string,
-      {
-        record: { wins: number; draws: number; losses: number };
-        nextFixtureLabel?: string;
-        nextFixtures: Fixture[];
-      }
-    > = {};
-
-    state.teams.teams.forEach((team) => {
-      const record = selectTeamRecord(state, team.id);
-      const nextFixture = selectNextFixtureForTeam(state, team.id);
-      const upcomingFixtures = selectFixturesByTeam(state, team.id)
-        .filter((fixture) => fixture.status !== 'completed')
-        .sort((a, b) => {
-          const aDate = getFixtureStartDate(a)?.getTime() ?? Number.POSITIVE_INFINITY;
-          const bDate = getFixtureStartDate(b)?.getTime() ?? Number.POSITIVE_INFINITY;
-          return aDate - bDate;
-        });
-
-      let nextFixtureLabel: string | undefined;
-      if (nextFixture) {
-        const kickoffOption = nextFixture.acceptedKickoffOptionId
-          ? nextFixture.kickoffOptions.find(
-              (option) => option.id === nextFixture.acceptedKickoffOptionId,
-            )
-          : nextFixture.kickoffOptions
-              .slice()
-              .sort((a, b) => new Date(a.isoTime).getTime() - new Date(b.isoTime).getTime())[0];
-
-        if (kickoffOption) {
-          nextFixtureLabel = `${nextFixture.opponent} • ${formatKickoffTime(kickoffOption.isoTime)}`;
-        } else {
-          nextFixtureLabel = nextFixture.opponent;
-        }
-      }
-
-      summary[team.id] = {
-        record,
-        nextFixtureLabel,
-        nextFixtures: upcomingFixtures.slice(0, 3),
-      };
-    });
-
-    return summary;
-  });
-  const communicationDigest = useAppSelector((state) => {
-    const summary: Record<string, CommunicationDigestEntry[]> = {};
-    const allCommunications: TeamCommunication[] = state.communications.communications;
-
-    state.teams.teams.forEach((team) => {
-      const teamCommunications = allCommunications
-        .filter((communication) => communication.teamId === team.id)
-        .slice()
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        .slice(0, 3)
-        .map((communication) => ({
-          id: communication.id,
-          sender: 'Team Staff',
-          message: communication.title,
-          date:
-            communication.status === 'scheduled' && communication.scheduledFor
-              ? communication.scheduledFor
-              : communication.createdAt,
-        }));
-
-      if (teamCommunications.length > 0) {
-        summary[team.id] = teamCommunications;
-      }
-    });
-
-    return summary;
-  });
+  const scheduleSummary = useAppSelector((state) => buildScheduleSummary(state, state.teams.teams));
+  const communicationDigest = useAppSelector((state) =>
+    buildCommunicationDigest(state, state.teams.teams),
+  );
 
   const teamCardsData = useMemo(
-    () =>
-      teams.map((team) => ({
-        team,
-        record: scheduleSummary[team.id]?.record,
-        nextFixtureLabel: scheduleSummary[team.id]?.nextFixtureLabel,
-        nextFixtures: scheduleSummary[team.id]?.nextFixtures ?? [],
-        communications: communicationDigest[team.id] ?? [],
-      })),
+    () => buildTeamCardsData(teams, scheduleSummary, communicationDigest),
     [communicationDigest, scheduleSummary, teams],
   );
 

@@ -3,14 +3,11 @@ import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 
 import type { Team } from '../store/slices/teamsSlice';
 import type { Fixture } from '../store/slices/scheduleSlice';
-import { formatKickoffTime, getFixtureStartDate } from '../store/slices/scheduleSlice';
-
-interface CommunicationDigestEntry {
-  id: string;
-  sender: string;
-  message: string;
-  date: string;
-}
+import {
+  CommunicationDigestEntry,
+  formatCommunicationDigest,
+  formatFixturesForDisplay,
+} from './teamCardFormatting';
 
 interface TeamRecordSummary {
   wins: number;
@@ -18,6 +15,11 @@ interface TeamRecordSummary {
   losses: number;
 }
 
+/**
+ * Describes the data needed to render the high-level team overview card. The parent screen is
+ * responsible for supplying already-normalised fixture and communication data so the component can
+ * focus purely on presentation.
+ */
 interface TeamCardProps {
   team: Team;
   onRemove: () => void;
@@ -39,36 +41,9 @@ const TeamCard: React.FC<TeamCardProps> = ({
   communications,
 }) => {
   const hasRecord = record && (record.wins > 0 || record.draws > 0 || record.losses > 0);
-  const formattedNextFixtures = nextFixtures.map((fixture) => {
-    const startDate = getFixtureStartDate(fixture);
-    const kickoffLabel = startDate ? formatKickoffTime(startDate.toISOString()) : 'Kickoff TBC';
+  const formattedNextFixtures = formatFixturesForDisplay(nextFixtures);
 
-    return {
-      id: fixture.id,
-      opponent: fixture.opponent,
-      kickoffLabel,
-      location: fixture.location,
-      status: fixture.status,
-    };
-  });
-
-  const communicationEntries = communications.map((entry) => {
-    const date = new Date(entry.date);
-    const formattedDate = Number.isNaN(date.getTime())
-      ? entry.date
-      : date.toLocaleString(undefined, {
-          weekday: 'short',
-          month: 'short',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-        });
-
-    return {
-      ...entry,
-      formattedDate,
-    };
-  });
+  const communicationEntries = formatCommunicationDigest(communications);
 
   return (
     <View style={styles.card}>
@@ -91,10 +66,10 @@ const TeamCard: React.FC<TeamCardProps> = ({
         </View>
       ) : null}
 
-      {formattedNextFixtures.length > 0 ? (
-        <View style={styles.highlightedFixture}>
-          <Text style={styles.sectionTitle}>Upcoming fixtures</Text>
-          {formattedNextFixtures.map((fixture, index) => (
+      <View style={styles.highlightedFixture}>
+        <Text style={styles.sectionTitle}>Upcoming fixtures</Text>
+        {formattedNextFixtures.length > 0 ? (
+          formattedNextFixtures.map((fixture, index) => (
             <View
               key={fixture.id}
               style={[
@@ -106,14 +81,16 @@ const TeamCard: React.FC<TeamCardProps> = ({
               <Text style={styles.fixtureMeta}>{fixture.kickoffLabel}</Text>
               <Text style={styles.fixtureMeta}>{fixture.location}</Text>
             </View>
-          ))}
-        </View>
-      ) : null}
+          ))
+        ) : (
+          <Text style={styles.emptyStateText}>No upcoming fixtures scheduled.</Text>
+        )}
+      </View>
 
-      {communicationEntries.length > 0 ? (
-        <View style={styles.communicationSection}>
-          <Text style={styles.sectionTitle}>Recent communications</Text>
-          {communicationEntries.map((entry, index) => (
+      <View style={styles.communicationSection}>
+        <Text style={styles.sectionTitle}>Recent communications</Text>
+        {communicationEntries.length > 0 ? (
+          communicationEntries.map((entry, index) => (
             <View
               key={entry.id}
               style={[
@@ -125,9 +102,11 @@ const TeamCard: React.FC<TeamCardProps> = ({
               <Text style={styles.communicationMessage}>{entry.message}</Text>
               <Text style={styles.communicationTimestamp}>{entry.formattedDate}</Text>
             </View>
-          ))}
-        </View>
-      ) : null}
+          ))
+        ) : (
+          <Text style={styles.emptyStateText}>No recent messages.</Text>
+        )}
+      </View>
 
       <View style={styles.actions}>
         <TouchableOpacity onPress={onManage} style={[styles.button, styles.manageButton]}>
@@ -208,6 +187,10 @@ const styles = StyleSheet.create({
     color: '#0f172a',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  emptyStateText: {
+    fontSize: 13,
+    color: '#64748b',
   },
   fixtureItem: {
     borderRadius: 8,
